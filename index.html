@@ -151,8 +151,15 @@
             <a target="_blank" href="http://www.sayonari.com/trans_asr/index_asr.html" style="font-size: 11px;">[作成方法]</a>
         </div>
         <div style="font-size: 13px;">
-            翻訳回数：<span id="displayTransCount">0</span><span style="color: gray; font-size: 11px;">（無料上限5,000回）</span>
+            <span id="apiModeDisplay">
+                翻訳回数：<span id="displayTransCount">0</span><span style="color: gray; font-size: 11px;">（無料上限5,000回）</span>
+            </span>
             　翻訳：<span id="translationStatus" style="font-weight: bold; color: #666;">待機中</span>
+        </div>
+        <div id="chromeTranslationMode" style="display: none; margin-top: 5px; padding: 5px; background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); border-radius: 5px;">
+            <span style="font-size: 14px; font-weight: bold; color: #1a5e3a;">
+                🚀 APIキー不要！Chrome高速翻訳モード動作中！
+            </span>
         </div>
     </div>
 </div>
@@ -649,7 +656,41 @@ PC内フォント：<select id="trans_text3_system_font" onchange="applySystemFo
 </div><BR>
 
 <script>
+// Chrome Translation API の状態をチェックして表示を更新
+function checkChromeTranslationAPI() {
+    // Chrome Translation APIが利用可能かチェック
+    if ('Translator' in self) {
+        // Chrome Translation APIが利用可能
+        document.getElementById('chromeTranslationMode').style.display = 'block';
+        document.getElementById('apiModeDisplay').style.display = 'none';
+        
+        // APIキー入力欄も視覚的に変更
+        const apiKeyInput = document.getElementById('gas_key');
+        if (apiKeyInput) {
+            apiKeyInput.style.backgroundColor = '#f0f0f0';
+            apiKeyInput.placeholder = 'Chrome高速翻訳モードのため不要';
+        }
+        
+        // 翻訳ステータスも更新
+        const statusEl = document.getElementById('translationStatus');
+        if (statusEl) {
+            statusEl.textContent = 'Chrome高速モード';
+            statusEl.style.color = '#2e7d32';
+        }
+        
+        console.log('🚀 Chrome Translation API (Chrome 138+) 検出 - 高速翻訳モード有効');
+        return true;
+    } else {
+        // Chrome Translation APIが利用不可（通常のGAS APIモード）
+        console.log('Chrome Translation APIは利用できません - GAS APIモードで動作');
+        return false;
+    }
+}
 
+// ページ読み込み時にチェック
+window.addEventListener('DOMContentLoaded', function() {
+    checkChromeTranslationAPI();
+});
 </script>
 
 </body>
