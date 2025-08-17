@@ -24,3 +24,22 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# SSL証明書
+localhost-key.pem
+localhost.pem
+
+# Chrome拡張機能の開発ファイル
+chrome_extension/
+chrome_test/
+*.zip
+
+# ドキュメント（開発用）
+chrome_auto_translate.md
+
+# Claude AI設定
+.claude/
+
+# Python cache
+__pycache__/
+*.pyc

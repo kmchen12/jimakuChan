@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>統合チェック - jimakuChan v2025.8.17</title>
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .check-item {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🔍 jimakuChan v2025.8.17 統合チェック</h1>
+    
+    <div id="checks"></div>
+    
+    <script>
+        const checks = [];
+        const checksDiv = document.getElementById('checks');
+        
+        // 1. HTTPS確認
+        const httpsCheck = location.protocol === 'https:';
+        checks.push({
+            name: 'HTTPS接続',
+            status: httpsCheck ? 'success' : 'error',
+            message: httpsCheck ? '✅ HTTPSで接続されています' : '❌ HTTPでは音声認識が動作しません'
+        });
+        
+        // 2. Web Speech API確認
+        const speechAPICheck = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+        checks.push({
+            name: 'Web Speech API',
+            status: speechAPICheck ? 'success' : 'error',
+            message: speechAPICheck ? '✅ 音声認識APIが利用可能' : '❌ 音声認識APIが見つかりません'
+        });
+        
+        // 3. Chrome Translation API確認
+        const translationAPICheck = 'Translator' in self;
+        checks.push({
+            name: 'Chrome Translation API',
+            status: translationAPICheck ? 'success' : 'warning',
+            message: translationAPICheck ? 
+                '✅ Chrome Translation API (Chrome 138+) が利用可能' : 
+                '⚠️ Chrome Translation APIは利用できません（GAS APIを使用）'
+        });
+        
+        // 4. chrome_translator_v2.js確認
+        const translatorScriptCheck = typeof ChromeTranslatorV2 !== 'undefined';
+        checks.push({
+            name: 'Translator Script',
+            status: translatorScriptCheck ? 'success' : 'info',
+            message: translatorScriptCheck ? 
+                '✅ chrome_translator_v2.jsが読み込まれています' : 
+                'ℹ️ chrome_translator_v2.jsは設定画面では不要です'
+        });
+        
+        // 5. LocalStorage確認
+        let localStorageCheck = false;
+        try {
+            localStorage.setItem('test', 'test');
+            localStorage.removeItem('test');
+            localStorageCheck = true;
+        } catch(e) {}
+        
+        checks.push({
+            name: 'LocalStorage',
+            status: localStorageCheck ? 'success' : 'error',
+            message: localStorageCheck ? 
+                '✅ 設定の保存が可能です' : 
+                '❌ 設定の保存ができません'
+        });
+        
+        // 6. バージョン情報
+        checks.push({
+            name: 'バージョン',
+            status: 'info',
+            message: `ℹ️ jimakuChan v2025.8.17 (2025年8月17日 09:48更新)`
+        });
+        
+        // 7. 主な更新内容
+        checks.push({
+            name: '更新内容',
+            status: 'info',
+            message: `ℹ️ Chrome Translation API統合による爆速翻訳（1-3秒→50ms）`
+        });
+        
+        // 結果表示
+        checks.forEach(check => {
+            const div = document.createElement('div');
+            div.className = `check-item ${check.status}`;
+            div.innerHTML = `<strong>${check.name}:</strong> ${check.message}`;
+            checksDiv.appendChild(div);
+        });
+        
+        // 総合判定
+        const hasError = checks.some(c => c.status === 'error');
+        const summaryDiv = document.createElement('div');
+        summaryDiv.className = `check-item ${hasError ? 'error' : 'success'}`;
+        summaryDiv.style.marginTop = '20px';
+        summaryDiv.innerHTML = hasError ? 
+            '<h3>❌ エラーがあります。上記の問題を解決してください。</h3>' :
+            '<h3>✅ すべてのチェックに合格しました！jimakuChanを使用する準備ができています。</h3>';
+        checksDiv.appendChild(summaryDiv);
+    </script>
+</body>
+</html>

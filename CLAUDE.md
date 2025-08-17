@@ -44,7 +44,7 @@ python run_server.py
 ```
 Starts HTTPS server on localhost:4443 (required for Web Speech API)
 
-### File Structure
+## File Structure
 - `index.html` - Configuration interface (loads `main.html` in iframe)
 - `main.html` - Subtitle display with speech recognition engine
 - `js/bouyomichan_client.js` - WebSocket client for TTS integration
@@ -73,3 +73,11 @@ The application uses a three-layer text rendering approach:
 - `*-imb`: Invisible positioning layer (same color as background)
 
 This creates customizable text outlines and ensures proper text positioning across different fonts and sizes.
+
+## Beta Version
+
+The repository includes beta versions (`beta_index.html`, `beta_main.html`) which may contain experimental features or modifications under development.
+
+## SSL Certificates
+
+The development server uses `localhost.pem` and `localhost-key.pem` for HTTPS support. These are required because the Web Speech API only works over secure connections.

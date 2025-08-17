@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Chrome Translation API (Chrome 138+) テスト</title>
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .chrome-version {
+            font-size: 14px;
+            color: #666;
+            background: #f5f5f5;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        .status {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            font-weight: bold;
+            position: relative;
+        }
+        .status.success {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            color: #1a5e3a;
+        }
+        .status.error {
+            background: linear-gradient(135deg, #fccb90 0%, #ff9a9e 100%);
+            color: #721c24;
+        }
+        .status.info {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            color: #004085;
+        }
+        .status.warning {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #856404;
+        }
+        .test-area {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+        }
+        h2 {
+            color: #555;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        input[type="text"], select {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            background: white;
+            padding: 20px;
+            border-left: 5px solid #667eea;
+            margin: 15px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .result.error {
+            border-left-color: #ff6b6b;
+        }
+        .language-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+        .lang-item {
+            padding: 12px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            background: white;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .lang-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .lang-item.supported {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            border-color: #4CAF50;
+            color: #1a5e3a;
+            font-weight: bold;
+        }
+        .lang-item.unsupported {
+            background: #f5f5f5;
+            color: #999;
+        }
+        .performance {
+            font-family: 'Courier New', monospace;
+            color: #666;
+            font-size: 14px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+        }
+        .flags-info {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        .flags-info h3 {
+            color: #856404;
+            margin-top: 0;
+        }
+        .flags-info ol {
+            margin: 10px 0;
+            padding-left: 25px;
+        }
+        .flags-info li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        .flags-info code {
+            background: #fff;
+            padding: 2px 6px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <script src="chrome_translator_v2.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>
+            🌐 Chrome Translation API テスト
+            <span class="chrome-version" id="chrome-version"></span>
+        </h1>
+        
+        <div id="status" class="status info">
+            <span id="status-text">APIの可用性を確認中...</span>
+            <span class="loading" id="loading"></span>
+        </div>
+        
+        <div id="api-info"></div>
+        
+        <div class="flags-info" id="flags-info" style="display: none;">
+            <h3>⚠️ Chrome Translation APIを有効にする方法</h3>
+            <ol>
+                <li>Chrome 138以降を使用していることを確認</li>
+                <li>アドレスバーに <code>chrome://flags</code> を入力</li>
+                <li><code>#translation-api</code> を検索して「Enabled」に設定</li>
+                <li><code>#language-detection-api</code> を検索して「Enabled」に設定（オプション）</li>
+                <li>Chromeを再起動</li>
+            </ol>
+            <p><strong>注意:</strong> これは実験的な機能です。将来のバージョンで変更される可能性があります。</p>
+        </div>
+        
+        <div class="test-area" id="test-area" style="display: none;">
+            <h2>🔄 翻訳テスト</h2>
+            <div class="input-group">
+                <select id="source-lang">
+                    <option value="auto">自動検出</option>
+                    <option value="ja" selected>日本語</option>
+                    <option value="en">英語</option>
+                    <option value="ko">韓国語</option>
+                    <option value="zh-CN">中国語（簡体）</option>
+                    <option value="zh-TW">中国語（繁体）</option>
+                    <option value="fr">フランス語</option>
+                    <option value="de">ドイツ語</option>
+                    <option value="es">スペイン語</option>
+                    <option value="it">イタリア語</option>
+                    <option value="pt">ポルトガル語</option>
+                    <option value="ru">ロシア語</option>
+                </select>
+                <span style="padding: 12px;">→</span>
+                <select id="target-lang">
+                    <option value="ja">日本語</option>
+                    <option value="en" selected>英語</option>
+                    <option value="ko">韓国語</option>
+                    <option value="zh-CN">中国語（簡体）</option>
+                    <option value="zh-TW">中国語（繁体）</option>
+                    <option value="fr">フランス語</option>
+                    <option value="de">ドイツ語</option>
+                    <option value="es">スペイン語</option>
+                    <option value="it">イタリア語</option>
+                    <option value="pt">ポルトガル語</option>
+                    <option value="ru">ロシア語</option>
+                </select>
+            </div>
+            
+            <input type="text" id="test-text" placeholder="翻訳したいテキストを入力" value="こんにちは、世界！今日はいい天気ですね。Chrome Translation APIのテストです。">
+            
+            <div style="margin-top: 15px;">
+                <button onclick="testTranslation()">翻訳実行</button>
+                <button onclick="testStreamingTranslation()">ストリーミング翻訳</button>
+                <button onclick="detectLanguage()">言語検出</button>
+            </div>
+            
+            <div id="translation-result"></div>
+        </div>
+        
+        <div class="test-area" id="language-test" style="display: none;">
+            <h2>🗣️ 対応言語ペアテスト</h2>
+            <p>日本語からの翻訳可能言語：</p>
+            <div id="language-support" class="language-grid"></div>
+        </div>
+        
+        <div class="test-area" id="performance-test" style="display: none;">
+            <h2>⚡ パフォーマンステスト</h2>
+            <button onclick="performanceTest()">パフォーマンステスト実行</button>
+            <div id="performance-result"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Chromeバージョン表示
+        const chromeVersion = navigator.userAgent.match(/Chrome\/(\d+)/);
+        if (chromeVersion) {
+            document.getElementById('chrome-version').textContent = `Chrome ${chromeVersion[1]}`;
+        }
+        
+        // 初期化とステータス確認
+        async function checkStatus() {
+            const statusEl = document.getElementById('status');
+            const statusTextEl = document.getElementById('status-text');
+            const loadingEl = document.getElementById('loading');
+            const infoEl = document.getElementById('api-info');
+            const flagsInfoEl = document.getElementById('flags-info');
+            const testAreaEl = document.getElementById('test-area');
+            const languageTestEl = document.getElementById('language-test');
+            const performanceTestEl = document.getElementById('performance-test');
+            
+            try {
+                // Translation API自体の存在確認
+                if (!('Translator' in self)) {
+                    statusEl.className = 'status error';
+                    statusTextEl.textContent = '❌ Chrome Translation APIは利用できません';
+                    loadingEl.style.display = 'none';
+                    
+                    const version = chromeVersion ? parseInt(chromeVersion[1]) : 0;
+                    if (version < 138) {
+                        infoEl.innerHTML = '<p>Chrome 138以降が必要です。現在のバージョン: Chrome ' + version + '</p>';
+                    } else {
+                        flagsInfoEl.style.display = 'block';
+                    }
+                    
+                    // デバッグ情報
+                    console.log('Translator in self:', 'Translator' in self);
+                    console.log('LanguageDetector in self:', 'LanguageDetector' in self);
+                    return;
+                }
+                
+                // ChromeTranslatorクラスの初期化確認
+                if (!window.chromeTranslator) {
+                    statusEl.className = 'status error';
+                    statusTextEl.textContent = '❌ ChromeTranslatorクラスが読み込まれていません';
+                    loadingEl.style.display = 'none';
+                    return;
+                }
+                
+                // 可用性チェック
+                const available = await window.chromeTranslator.checkAvailability();
+                loadingEl.style.display = 'none';
+                
+                if (available) {
+                    statusEl.className = 'status success';
+                    statusTextEl.textContent = '✅ Chrome Translation APIは利用可能です！';
+                    
+                    let info = '<h3>📊 API情報:</h3><ul>';
+                    info += '<li>ステータス: 利用可能</li>';
+                    info += '<li>翻訳方式: ローカル処理（オフライン対応）</li>';
+                    info += '<li>プライバシー: データは外部送信されません</li>';
+                    if (window.chromeTranslator.detector) {
+                        info += '<li>言語検出: 利用可能</li>';
+                    }
+                    info += '</ul>';
+                    infoEl.innerHTML = info;
+                    
+                    // テストエリアを表示
+                    testAreaEl.style.display = 'block';
+                    languageTestEl.style.display = 'block';
+                    performanceTestEl.style.display = 'block';
+                    
+                    // 言語サポート確認
+                    checkLanguageSupport();
+                } else {
+                    statusEl.className = 'status warning';
+                    statusTextEl.textContent = '⚠️ Chrome Translation APIは現在利用できません';
+                    flagsInfoEl.style.display = 'block';
+                }
+                
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusTextEl.textContent = '❌ エラー: ' + error.message;
+                loadingEl.style.display = 'none';
+                console.error('API確認エラー:', error);
+            }
+        }
+        
+        // 言語サポート確認
+        async function checkLanguageSupport() {
+            const languages = [
+                { code: 'en', name: '英語' },
+                { code: 'ko', name: '韓国語' },
+                { code: 'zh-CN', name: '中国語(簡)' },
+                { code: 'zh-TW', name: '中国語(繁)' },
+                { code: 'fr', name: 'フランス語' },
+                { code: 'de', name: 'ドイツ語' },
+                { code: 'es', name: 'スペイン語' },
+                { code: 'it', name: 'イタリア語' },
+                { code: 'pt', name: 'ポルトガル語' },
+                { code: 'ru', name: 'ロシア語' },
+                { code: 'ar', name: 'アラビア語' },
+                { code: 'th', name: 'タイ語' },
+                { code: 'vi', name: 'ベトナム語' },
+                { code: 'id', name: 'インドネシア語' }
+            ];
+            
+            const supportEl = document.getElementById('language-support');
+            supportEl.innerHTML = '<div style="text-align: center;">確認中...</div>';
+            
+            const results = [];
+            for (const lang of languages) {
+                const canTranslate = await window.chromeTranslator.canTranslate('ja', lang.code);
+                results.push({ ...lang, supported: canTranslate });
+            }
+            
+            supportEl.innerHTML = '';
+            results.forEach(lang => {
+                const div = document.createElement('div');
+                div.className = lang.supported ? 'lang-item supported' : 'lang-item unsupported';
+                div.innerHTML = `
+                    <div>${lang.name}</div>
+                    <div style="font-size: 12px;">${lang.code}</div>
+                    ${lang.supported ? '✅' : '❌'}
+                `;
+                supportEl.appendChild(div);
+            });
+        }
+        
+        // 翻訳テスト
+        async function testTranslation() {
+            const sourceLang = document.getElementById('source-lang').value;
+            const targetLang = document.getElementById('target-lang').value;
+            const text = document.getElementById('test-text').value;
+            const resultEl = document.getElementById('translation-result');
+            
+            if (!text) {
+                resultEl.innerHTML = '<div class="result error">テキストを入力してください</div>';
+                return;
+            }
+            
+            if (sourceLang === targetLang && sourceLang !== 'auto') {
+                resultEl.innerHTML = '<div class="result error">同じ言語への翻訳はできません</div>';
+                return;
+            }
+            
+            resultEl.innerHTML = '<div class="result">翻訳中... <span class="loading"></span></div>';
+            
+            try {
+                const startTime = performance.now();
+                const translated = await window.chromeTranslator.translate(text, sourceLang, targetLang);
+                const endTime = performance.now();
+                
+                resultEl.innerHTML = `
+                    <div class="result">
+                        <h3>✅ 翻訳成功</h3>
+                        <p><strong>原文 (${sourceLang}):</strong></p>
+                        <p style="background: #f5f5f5; padding: 10px; border-radius: 5px;">${text}</p>
+                        <p><strong>翻訳 (${targetLang}):</strong></p>
+                        <p style="background: #e8f5e9; padding: 10px; border-radius: 5px; font-size: 18px;">${translated}</p>
+                        <div class="performance">
+                            ⚡ 処理時間: ${Math.round(endTime - startTime)}ms
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultEl.innerHTML = `<div class="result error">
+                    <strong>❌ エラー:</strong> ${error.message}
+                </div>`;
+                console.error('翻訳エラー:', error);
+            }
+        }
+        
+        // ストリーミング翻訳テスト
+        async function testStreamingTranslation() {
+            const sourceLang = document.getElementById('source-lang').value;
+            const targetLang = document.getElementById('target-lang').value;
+            const text = document.getElementById('test-text').value;
+            const resultEl = document.getElementById('translation-result');
+            
+            if (!text) {
+                resultEl.innerHTML = '<div class="result error">テキストを入力してください</div>';
+                return;
+            }
+            
+            resultEl.innerHTML = '<div class="result">ストリーミング翻訳中... <span class="loading"></span></div>';
+            
+            try {
+                let streamResult = '';
+                const startTime = performance.now();
+                
+                await window.chromeTranslator.translateStreaming(
+                    text, 
+                    sourceLang, 
+                    targetLang,
+                    (chunk) => {
+                        streamResult = chunk;
+                        resultEl.innerHTML = `
+                            <div class="result">
+                                <h3>🔄 ストリーミング翻訳</h3>
+                                <p><strong>原文:</strong> ${text}</p>
+                                <p><strong>翻訳（リアルタイム）:</strong></p>
+                                <p style="background: #fff3e0; padding: 10px; border-radius: 5px; font-size: 18px;">${chunk}</p>
+                            </div>
+                        `;
+                    }
+                );
+                
+                const endTime = performance.now();
+                resultEl.innerHTML += `<div class="performance">⚡ 処理時間: ${Math.round(endTime - startTime)}ms</div>`;
+            } catch (error) {
+                resultEl.innerHTML = `<div class="result error">
+                    <strong>❌ エラー:</strong> ${error.message}
+                </div>`;
+                console.error('ストリーミング翻訳エラー:', error);
+            }
+        }
+        
+        // 言語検出テスト
+        async function detectLanguage() {
+            const text = document.getElementById('test-text').value;
+            const resultEl = document.getElementById('translation-result');
+            
+            if (!text) {
+                resultEl.innerHTML = '<div class="result error">テキストを入力してください</div>';
+                return;
+            }
+            
+            resultEl.innerHTML = '<div class="result">言語検出中... <span class="loading"></span></div>';
+            
+            try {
+                const startTime = performance.now();
+                const detectedLang = await window.chromeTranslator.detectLanguage(text);
+                const endTime = performance.now();
+                
+                if (detectedLang) {
+                    resultEl.innerHTML = `
+                        <div class="result">
+                            <h3>🔍 言語検出結果</h3>
+                            <p><strong>入力テキスト:</strong></p>
+                            <p style="background: #f5f5f5; padding: 10px; border-radius: 5px;">${text}</p>
+                            <p><strong>検出された言語:</strong></p>
+                            <p style="background: #e3f2fd; padding: 10px; border-radius: 5px; font-size: 20px;">
+                                ${detectedLang}
+                            </p>
+                            <div class="performance">
+                                ⚡ 処理時間: ${Math.round(endTime - startTime)}ms
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultEl.innerHTML = '<div class="result error">言語を検出できませんでした</div>';
+                }
+            } catch (error) {
+                resultEl.innerHTML = `<div class="result error">
+                    <strong>❌ エラー:</strong> ${error.message}
+                </div>`;
+                console.error('言語検出エラー:', error);
+            }
+        }
+        
+        // パフォーマンステスト
+        async function performanceTest() {
+            const resultEl = document.getElementById('performance-result');
+            const testTexts = [
+                { text: 'こんにちは', desc: '短文' },
+                { text: '今日はいい天気ですね', desc: '中文' },
+                { text: 'Chrome Translation APIは高速な翻訳を提供します', desc: '技術文' },
+                { text: 'この文章は日本語から英語に翻訳されます。翻訳の品質と速度をテストしています。Chrome 138の新機能により、オフラインでも高品質な翻訳が可能になりました。', desc: '長文' }
+            ];
+            
+            resultEl.innerHTML = '<div class="result">パフォーマンステスト実行中... <span class="loading"></span></div>';
+            
+            let results = '<div class="result"><h3>⚡ パフォーマンステスト結果</h3>';
+            let totalTime = 0;
+            let successCount = 0;
+            
+            for (const item of testTexts) {
+                try {
+                    const startTime = performance.now();
+                    const translated = await window.chromeTranslator.translate(item.text, 'ja', 'en');
+                    const endTime = performance.now();
+                    const time = Math.round(endTime - startTime);
+                    totalTime += time;
+                    successCount++;
+                    
+                    results += `
+                        <div style="margin: 15px 0; padding: 15px; background: #f0f9ff; border-radius: 8px;">
+                            <strong>${item.desc}（${item.text.length}文字）:</strong><br>
+                            <span style="color: #666;">原文:</span> ${item.text}<br>
+                            <span style="color: #666;">翻訳:</span> ${translated}<br>
+                            <div class="performance">処理時間: ${time}ms</div>
+                        </div>
+                    `;
+                } catch (error) {
+                    results += `
+                        <div style="margin: 15px 0; padding: 15px; background: #ffebee; border-radius: 8px;">
+                            <strong>${item.desc}:</strong><br>
+                            <span style="color: #666;">原文:</span> ${item.text}<br>
+                            <strong style="color: #d32f2f;">エラー:</strong> ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            if (successCount > 0) {
+                const avgTime = Math.round(totalTime / successCount);
+                results += `
+                    <div style="margin-top: 20px; padding: 15px; background: #e8f5e9; border-radius: 8px;">
+                        <strong>📊 統計:</strong><br>
+                        成功: ${successCount}/${testTexts.length}<br>
+                        平均処理時間: ${avgTime}ms<br>
+                        合計時間: ${totalTime}ms
+                    </div>
+                `;
+            }
+            
+            results += '</div>';
+            resultEl.innerHTML = results;
+        }
+        
+        // ページロード時に初期化
+        window.addEventListener('load', () => {
+            checkStatus();
+        });
+    </script>
+</body>
+</html>

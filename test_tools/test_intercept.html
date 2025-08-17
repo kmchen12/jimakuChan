@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>XMLHttpRequest インターセプトテスト</title>
+</head>
+<body>
+    <h1>XMLHttpRequest インターセプトテスト</h1>
+    <button id="testBtn">テストリクエスト送信</button>
+    <button id="gasBtn">GAS APIテストリクエスト</button>
+    <div id="result"></div>
+    
+    <script>
+        // オリジナルのXMLHttpRequestを保存（比較用）
+        const OriginalXHR = XMLHttpRequest;
+        
+        document.getElementById('testBtn').addEventListener('click', () => {
+            console.log('通常のテストリクエスト送信');
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', 'https://jsonplaceholder.typicode.com/posts/1', true);
+            xhr.onload = function() {
+                document.getElementById('result').innerHTML = '通常リクエスト成功: ' + this.responseText.substring(0, 100);
+            };
+            xhr.send();
+        });
+        
+        document.getElementById('gasBtn').addEventListener('click', () => {
+            console.log('GAS APIテストリクエスト送信');
+            const xhr = new XMLHttpRequest();
+            const gasUrl = 'https://script.google.com/macros/s/TEST_KEY/exec?text=Hello&source=en&target=ja';
+            xhr.open('GET', gasUrl, true);
+            xhr.onload = function() {
+                document.getElementById('result').innerHTML = 'GASリクエスト結果: ' + this.responseText;
+            };
+            xhr.send();
+        });
+        
+        // インターセプト状態を確認
+        setTimeout(() => {
+            if (XMLHttpRequest !== OriginalXHR) {
+                console.log('✅ XMLHttpRequestはインターセプトされています！');
+            } else {
+                console.log('❌ XMLHttpRequestはインターセプトされていません');
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

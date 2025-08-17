@@ -17,6 +17,7 @@
 
     <link rel="icon" href="./img/favicon2/favicon.ico" />
     <script src="js/bouyomichan_client.js"></script>
+    <script src="chrome_translator_v2.js"></script>
 
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-FKQVD3TMXH"></script>
@@ -512,6 +513,33 @@
 
         // その他設定 ----------------------------
         var isSpeechRecognitionComplete = false;
+        
+        // Chrome Translation APIの初期化チェック (Chrome 138+)
+        var useChromeTranslation = false;
+        var chromeTranslationReady = false;
+        
+        // Chrome Translation APIが利用可能か確認
+        if (window.chromeTranslator) {
+            window.chromeTranslator.checkAvailability().then(available => {
+                if (available) {
+                    chromeTranslationReady = true;
+                    console.log('Chrome Translation API (Chrome 138+) が利用可能です');
+                    
+                    // 翻訳言語の対応状況を確認
+                    if (arg_trans) {
+                        const sourceLang = window.chromeTranslator.normalizeLanguageCode(trans_sourcelang);
+                        const targetLang = window.chromeTranslator.normalizeLanguageCode(arg_trans);
+                        window.chromeTranslator.canTranslate(sourceLang, targetLang).then(canTranslate => {
+                            console.log(`翻訳1: ${trans_sourcelang} → ${arg_trans} (対応: ${canTranslate})`);
+                            if (canTranslate) {
+                                useChromeTranslation = true;
+                            }
+                        });
+                    }
+                }
+            });
+        }
+        
         var isTextTranslation1Complete = false;
         var isTextTranslation2Complete = false;
         var isTextTranslation3Complete = false;
@@ -941,6 +969,20 @@
                     document.getElementById('speech_text-fg').innerHTML = displayTextWithConfidence;
                     isSpeechRecognitionComplete = true; // フラグを更新
                     
+                    // Chrome翻訃窓にテキストを送信
+                    if (window.parent && window.parent !== window) {
+                        // iframe内から親ウィンドウに送信
+                        window.parent.postMessage({
+                            type: 'speechText',
+                            text: filteredFinalText
+                        }, '*');
+                        
+                        // Chrome翻訳窓が開いているか確認
+                        window.parent.postMessage({
+                            type: 'checkChromeTranslation'
+                        }, '*');
+                    }
+                    
                     // 翻訳処理用に最終確定テキストのみを使用（フィルタリング済み）
                     recog_text = filteredFinalText;
                     lastFinalText = filteredFinalText;  // 表示用はフィルタリング済み
@@ -952,7 +994,79 @@
                         bouyomiChanClient.talk(recog_text);
                     }
 
-                    if(gas_key != null){
+                    // Chrome Translation APIを優先使用
+                    if (useChromeTranslation && chromeTranslationReady && arg_trans != null) {
+                        // Chrome Translationで翻訳
+                        const sourceLang = window.chromeTranslator.normalizeLanguageCode(trans_sourcelang);
+                        const targetLang = window.chromeTranslator.normalizeLanguageCode(arg_trans);
+                        
+                        updateTranslationStatus('Chrome翻訳中', '#4CAF50');
+                        
+                        window.chromeTranslator.translate(recog_text, sourceLang, targetLang)
+                            .then(translatedText => {
+                                // 翻訳結果を表示
+                                const filteredText = applyTranslationFilter(translatedText, 1);
+                                document.getElementById('trans_text-imb').innerHTML = filteredText;
+                                document.getElementById('trans_text-bg').innerHTML = filteredText;
+                                document.getElementById('trans_text-fg').innerHTML = filteredText;
+                                isTextTranslation1Complete = true;
+                                
+                                updateTranslationStatus('Chrome翻訳完了', '#4CAF50');
+                                startTranslationDeleteTimer();
+                                
+                                // 翻訳2言語目（Chrome Translation対応時）
+                                if (arg_trans2 != null && chromeTranslationReady) {
+                                    const targetLang2 = window.chromeTranslator.normalizeLanguageCode(arg_trans2);
+                                    
+                                    window.chromeTranslator.canTranslate(sourceLang, targetLang2).then(canTranslate2 => {
+                                        if (canTranslate2) {
+                                            return window.chromeTranslator.translate(recog_text, sourceLang, targetLang2);
+                                        }
+                                    }).then(translatedText2 => {
+                                        if (translatedText2) {
+                                            const filteredText2 = applyTranslationFilter(translatedText2, 2);
+                                            document.getElementById('trans_text2-imb').innerHTML = filteredText2;
+                                            document.getElementById('trans_text2-bg').innerHTML = filteredText2;
+                                            document.getElementById('trans_text2-fg').innerHTML = filteredText2;
+                                            isTextTranslation2Complete = true;
+                                            startTranslationDeleteTimer();
+                                        }
+                                    }).catch(error => {
+                                        console.error('Chrome Translation 翻訳2エラー:', error);
+                                    });
+                                }
+                                
+                                // 翻訳3言語目（Chrome Translation対応時）
+                                if (arg_trans3 != null && chromeTranslationReady) {
+                                    const targetLang3 = window.chromeTranslator.normalizeLanguageCode(arg_trans3);
+                                    
+                                    window.chromeTranslator.canTranslate(sourceLang, targetLang3).then(canTranslate3 => {
+                                        if (canTranslate3) {
+                                            return window.chromeTranslator.translate(recog_text, sourceLang, targetLang3);
+                                        }
+                                    }).then(translatedText3 => {
+                                        if (translatedText3) {
+                                            const filteredText3 = applyTranslationFilter(translatedText3, 3);
+                                            document.getElementById('trans_text3-imb').innerHTML = filteredText3;
+                                            document.getElementById('trans_text3-bg').innerHTML = filteredText3;
+                                            document.getElementById('trans_text3-fg').innerHTML = filteredText3;
+                                            isTextTranslation3Complete = true;
+                                            startTranslationDeleteTimer();
+                                        }
+                                    }).catch(error => {
+                                        console.error('Chrome Translation 翻訳3エラー:', error);
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Chrome AI 翻訳エラー:', error);
+                                updateTranslationStatus('Chrome翻訳エラー', '#ff0000');
+                                // フォールバックとしてGAS APIを使用
+                                useChromeTranslation = false;
+                            });
+                    }
+                    // Chrome Translation APIが使用できない場合はGAS APIを使用
+                    else if(gas_key != null && !useChromeTranslation){
                         
                         // 翻訳開始ステータス
                         var activeTranslations = [];
