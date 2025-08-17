@@ -557,45 +557,13 @@
         if (window.chromeTranslator) {
             // ダウンロード状態変更コールバックを設定
             window.chromeTranslator.onDownloadStatusChange = function(status) {
-                // 親ウィンドウ（設定画面）が存在し、frame_heightが100%（設定非表示）の場合は表示しない
-                let shouldShowStatus = true;
-                try {
-                    if (window.parent && window.parent !== window && window.parent.document) {
-                        const frameHeightEl = window.parent.document.getElementById('frame_height');
-                        if (frameHeightEl && frameHeightEl.value === '100%') {
-                            shouldShowStatus = false;
-                        }
-                    }
-                } catch (e) {
-                    // クロスオリジンエラーの場合は表示する
-                    shouldShowStatus = true;
-                }
-                
-                if (!shouldShowStatus) {
-                    // 設定画面が非表示の場合はダウンロード状況も表示しない
-                    return;
-                }
-                
-                let downloadStatusEl = document.getElementById('downloadStatus');
-                if (!downloadStatusEl) {
-                    // 要素がなければ作成
-                    downloadStatusEl = document.createElement('div');
-                    downloadStatusEl.id = 'downloadStatus';
-                    document.body.appendChild(downloadStatusEl);
-                }
-                
-                if (status.status === 'downloading') {
-                    downloadStatusEl.textContent = '🔄 ' + status.message;
-                    downloadStatusEl.className = 'downloading';
-                    downloadStatusEl.style.display = 'block';
-                } else if (status.status === 'completed') {
-                    downloadStatusEl.textContent = '✅ ' + status.message;
-                    downloadStatusEl.className = 'completed';
-                    downloadStatusEl.style.display = 'block';
-                    // 3秒後に非表示
-                    setTimeout(() => {
-                        downloadStatusEl.style.display = 'none';
-                    }, 3000);
+                // 親ウィンドウ（index.html）にメッセージを送信
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'downloadStatus',
+                        status: status.status,
+                        message: status.message
+                    }, '*');
                 }
             };
             
@@ -1477,7 +1445,7 @@
 
 // バージョン情報の表示 ---------------------------------
 const SoftwareTitle = "音声認識字幕ちゃん";
-const SoftwareVersion = "2025.8.17 20:06";
+const SoftwareVersion = "2025.8.17 20:22";
 const SoftwareDeveloper = "[開発者：さぁたん ＆ さよなりω/(大学教員)西村良太]"
 
 // Web Speech API使用時のデバイス制限について

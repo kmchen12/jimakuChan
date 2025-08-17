@@ -29,7 +29,7 @@
     </script>
     <!-- END: Google tag (gtag.js) -->
 
-    <title>jimakuChan: 音声認識字幕ちゃん v2025.8.17 20:06 [CONFIG]</title>
+    <title>jimakuChan: 音声認識字幕ちゃん v2025.8.17 20:22 [CONFIG]</title>
 
     <style type="text/css">
         /* グローバルなbox-sizingリセット */
@@ -160,6 +160,9 @@
             <span style="font-size: 14px; font-weight: bold; color: #1a5e3a;">
                 🚀 APIキー不要！Chrome版高速翻訳可能！初回は翻訳モデルをダウンロード（数分かかる）
             </span>
+            <div id="downloadStatusArea" style="display: none; margin-top: 8px; padding: 8px; background: rgba(255, 255, 255, 0.9); border-radius: 4px;">
+                <span id="downloadStatusText" style="font-size: 13px; color: #333;"></span>
+            </div>
         </div>
     </div>
 </div>
@@ -3175,6 +3178,31 @@ window.addEventListener('DOMContentLoaded', function() {
                 presetSelect.dispatchEvent(event);
             }
         }, 500);
+    });
+    
+    // iframeからのダウンロード状況メッセージを受信
+    window.addEventListener('message', function(event) {
+        // セキュリティのため、信頼できるソースからのメッセージのみ処理
+        if (event.data && event.data.type === 'downloadStatus') {
+            const statusArea = document.getElementById('downloadStatusArea');
+            const statusText = document.getElementById('downloadStatusText');
+            
+            if (statusArea && statusText) {
+                if (event.data.status === 'downloading') {
+                    statusText.innerHTML = '🔄 ' + event.data.message;
+                    statusArea.style.display = 'block';
+                    statusArea.style.background = 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)';
+                } else if (event.data.status === 'completed') {
+                    statusText.innerHTML = '✅ ' + event.data.message;
+                    statusArea.style.display = 'block';
+                    statusArea.style.background = 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)';
+                    // 3秒後に非表示
+                    setTimeout(() => {
+                        statusArea.style.display = 'none';
+                    }, 3000);
+                }
+            }
+        }
     });
 </script>
 
