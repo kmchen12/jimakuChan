@@ -10,6 +10,8 @@ class ChromeTranslatorV2 {
         this.retryDelay = 1000; // 1秒
         this.lastTranslationTime = new Map(); // レート制限用
         this.minTranslationInterval = 100; // 最小翻訳間隔（ミリ秒）
+        this.downloadingModels = new Set(); // ダウンロード中のモデルを追跡
+        this.onDownloadStatusChange = null; // ダウンロード状態変更時のコールバック
         this.checkAvailability();
     }
 
@@ -130,12 +132,39 @@ class ChromeTranslatorV2 {
                 throw new Error(`翻訳不可: ${sourceLang} → ${targetLang} (availability: ${availability})`);
             }
             
+            // ダウンロードが必要な場合は通知
+            if (availability === 'downloadable') {
+                console.log(`翻訳モデルのダウンロードが必要: ${sourceLang} → ${targetLang}`);
+                this.downloadingModels.add(key);
+                if (this.onDownloadStatusChange) {
+                    this.onDownloadStatusChange({
+                        status: 'downloading',
+                        sourceLang: sourceLang,
+                        targetLang: targetLang,
+                        message: `翻訳モデル(${this.getLanguageName(sourceLang)}→${this.getLanguageName(targetLang)})をダウンロード中...`
+                    });
+                }
+            }
+            
             console.log(`Chrome 翻訳器を作成中: ${sourceLang} → ${targetLang}`);
             
             const translator = await Translator.create({
                 sourceLanguage: sourceLang,
                 targetLanguage: targetLang
             });
+            
+            // ダウンロード完了を通知
+            if (this.downloadingModels.has(key)) {
+                this.downloadingModels.delete(key);
+                if (this.onDownloadStatusChange) {
+                    this.onDownloadStatusChange({
+                        status: 'completed',
+                        sourceLang: sourceLang,
+                        targetLang: targetLang,
+                        message: `翻訳モデル(${this.getLanguageName(sourceLang)}→${this.getLanguageName(targetLang)})の準備完了！`
+                    });
+                }
+            }
 
             // キャッシュに保存
             this.translators.set(key, translator);
@@ -354,6 +383,37 @@ class ChromeTranslatorV2 {
         };
         
         return mapping[code] || code;
+    }
+    
+    // 言語名を取得
+    getLanguageName(code) {
+        const languageNames = {
+            'ja': '日本語',
+            'en': '英語',
+            'ko': '韓国語',
+            'zh': '中国語',
+            'zh-CN': '中国語(簡)',
+            'zh-TW': '中国語(繁)',
+            'zh-Hant': '中国語(繁)',
+            'fr': 'フランス語',
+            'de': 'ドイツ語',
+            'es': 'スペイン語',
+            'it': 'イタリア語',
+            'pt': 'ポルトガル語',
+            'ru': 'ロシア語',
+            'ar': 'アラビア語',
+            'th': 'タイ語',
+            'vi': 'ベトナム語',
+            'id': 'インドネシア語',
+            'nl': 'オランダ語',
+            'pl': 'ポーランド語',
+            'tr': 'トルコ語',
+            'sv': 'スウェーデン語',
+            'uk': 'ウクライナ語',
+            'so': 'ソマリ語',
+            'el': 'ギリシャ語'
+        };
+        return languageNames[code] || code;
     }
 }
 

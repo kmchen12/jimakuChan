@@ -76,6 +76,41 @@
     </style>
 
     <style>
+        /* Chrome翻訳モデルダウンロード状態表示 */
+        #downloadStatus {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 10000;
+            display: none;
+            animation: pulse 2s infinite;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        #downloadStatus.downloading {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #856404;
+        }
+        
+        #downloadStatus.completed {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            color: #155724;
+        }
+    </style>
+
+    <style>
         /* prepare the selectors to add a stroke to */
 
         .stroke-single-imb{
@@ -520,6 +555,31 @@
         
         // Chrome Translation APIが利用可能か確認
         if (window.chromeTranslator) {
+            // ダウンロード状態変更コールバックを設定
+            window.chromeTranslator.onDownloadStatusChange = function(status) {
+                let downloadStatusEl = document.getElementById('downloadStatus');
+                if (!downloadStatusEl) {
+                    // 要素がなければ作成
+                    downloadStatusEl = document.createElement('div');
+                    downloadStatusEl.id = 'downloadStatus';
+                    document.body.appendChild(downloadStatusEl);
+                }
+                
+                if (status.status === 'downloading') {
+                    downloadStatusEl.textContent = '🔄 ' + status.message;
+                    downloadStatusEl.className = 'downloading';
+                    downloadStatusEl.style.display = 'block';
+                } else if (status.status === 'completed') {
+                    downloadStatusEl.textContent = '✅ ' + status.message;
+                    downloadStatusEl.className = 'completed';
+                    downloadStatusEl.style.display = 'block';
+                    // 3秒後に非表示
+                    setTimeout(() => {
+                        downloadStatusEl.style.display = 'none';
+                    }, 3000);
+                }
+            };
+            
             window.chromeTranslator.checkAvailability().then(available => {
                 if (available) {
                     chromeTranslationReady = true;
