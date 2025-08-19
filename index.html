@@ -29,7 +29,7 @@
     </script>
     <!-- END: Google tag (gtag.js) -->
 
-    <title>jimakuChan: 音声認識字幕ちゃん v2025.8.17 20:06 [CONFIG]</title>
+    <title>jimakuChan: 音声認識字幕ちゃん v2025.8.19 19:33 [CONFIG]</title>
 
     <style type="text/css">
         /* グローバルなbox-sizingリセット */
@@ -156,10 +156,26 @@
             </span>
             　翻訳：<span id="translationStatus" style="font-weight: bold; color: #666;">待機中</span>
         </div>
-        <div id="chromeTranslationMode" style="display: none; margin-top: 5px; padding: 5px; background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); border-radius: 5px;">
-            <span style="font-size: 14px; font-weight: bold; color: #1a5e3a;">
-                🚀 APIキー不要！Chrome版高速翻訳可能！初回は翻訳モデルをダウンロード（数分かかる）
-            </span>
+        <div id="chromeTranslationMode" style="display: none; margin-top: 5px; padding: 10px; background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); border-radius: 5px;">
+            <div style="margin-bottom: 8px;">
+                <span style="font-size: 14px; font-weight: bold; color: #1a5e3a;">
+                    🚀 高速翻訳対応Chromeで起動！
+                </span>
+            </div>
+            <div id="modelDownloadArea" style="display: none; margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #fff3cd 0%, #ffe8a1 100%); border-radius: 5px; border: 2px solid #ffc107;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <button id="preloadModelBtn" onclick="preloadTranslationModel()" style="padding: 8px 16px; background: #ff6b6b; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 14px; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                        📥 モデルをダウンロード
+                    </button>
+                    <span id="modelQueueStatus" style="padding: 4px 8px; background: rgba(255, 255, 255, 0.8); border-radius: 4px; font-size: 12px; color: #666; font-weight: bold; display: none;">
+                        📦 残り0個
+                    </span>
+                    <span id="modelStatusText" style="font-size: 13px; color: #333; font-weight: bold;"></span>
+                </div>
+            </div>
+            <div id="downloadStatusArea" style="display: none; margin-top: 8px; padding: 8px; background: rgba(255, 255, 255, 0.9); border-radius: 4px;">
+                <span id="downloadStatusText" style="font-size: 13px; color: #333;"></span>
+            </div>
         </div>
     </div>
 </div>
@@ -267,7 +283,7 @@
 
 <!-- # 言語選択設定 ######################### -->
 音声認識言語　：
-<select id="recog" onchange="updateOptionValues(only_url=false);">
+<select id="recog" onchange="updateOptionValues(only_url=false); checkAllTranslationModels();">
     <option value="ja" selected>日本語</option>
     <option value="en-US">英語</option>
     <option value="ko">韓国語</option>
@@ -328,7 +344,7 @@ PC内フォント：<select id="speech_text_system_font" onchange="applySystemFo
 <span id="font_api_status" style="font-size: 12px; margin-left: 10px;"></span><br>
 
 翻訳言語（１）：
-<select id="trans" onchange="updateOptionValues(only_url=false);">
+<select id="trans" onchange="updateOptionValues(only_url=false); checkTranslationModel(1, event);">
     <option value="none" selected>なし</option>
     <option value="ja">日本語</option>
     <option value="en">英語</option>
@@ -390,7 +406,7 @@ PC内フォント：<select id="trans_text_system_font" onchange="applySystemFon
 <input type="text" id="trans_text_direct_font" placeholder="フォント名を入力" style="width: 200px; margin-left: 10px;" disabled oninput="applyDirectFont(this.value, 'trans_text'); updateOptionValues();"><br>
 
 翻訳言語（２）：
-<select id="trans2" onchange="updateOptionValues(only_url=false);">
+<select id="trans2" onchange="updateOptionValues(only_url=false); checkTranslationModel(2, event);">
     <option value="none" selected>なし</option>
     <option value="ja">日本語</option>
     <option value="en">英語</option>
@@ -452,7 +468,7 @@ PC内フォント：<select id="trans_text2_system_font" onchange="applySystemFo
 <input type="text" id="trans_text2_direct_font" placeholder="フォント名を入力" style="width: 200px; margin-left: 10px;" disabled oninput="applyDirectFont(this.value, 'trans_text2'); updateOptionValues();"><br>
 
 翻訳言語（３）：
-<select id="trans3" onchange="updateOptionValues(only_url=false);">
+<select id="trans3" onchange="updateOptionValues(only_url=false); checkTranslationModel(3, event);">
     <option value="none" selected>なし</option>
     <option value="ja">日本語</option>
     <option value="en">英語</option>
@@ -690,6 +706,10 @@ function checkChromeTranslationAPI() {
 // ページ読み込み時にチェック
 window.addEventListener('DOMContentLoaded', function() {
     checkChromeTranslationAPI();
+    // 少し遅延させてから全翻訳モデルをチェック（iframeの準備を待つ）
+    setTimeout(() => {
+        checkAllTranslationModels();
+    }, 2000);
 });
 </script>
 
@@ -3176,6 +3196,378 @@ window.addEventListener('DOMContentLoaded', function() {
             }
         }, 500);
     });
+    
+    // iframeからのダウンロード状況メッセージを受信
+    window.addEventListener('message', function(event) {
+        // セキュリティのため、信頼できるソースからのメッセージのみ処理
+        if (event.data && event.data.type === 'downloadStatus') {
+            const statusArea = document.getElementById('downloadStatusArea');
+            const statusText = document.getElementById('downloadStatusText');
+            
+            if (statusArea && statusText) {
+                if (event.data.status === 'downloading') {
+                    // 進捗率がある場合は表示
+                    const progressText = event.data.progress !== undefined 
+                        ? `🔄 ${event.data.message}` 
+                        : '🔄 ' + event.data.message;
+                    statusText.innerHTML = progressText;
+                    statusArea.style.display = 'block';
+                    
+                    // 進捗率に応じて背景色を変化
+                    if (event.data.progress !== undefined) {
+                        const progress = event.data.progress;
+                        // グラデーションで進捗を表現
+                        statusArea.style.background = `linear-gradient(90deg, #ffa726 ${progress}%, #ffe0b2 ${progress}%)`;
+                    } else {
+                        statusArea.style.background = 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)';
+                    }
+                } else if (event.data.status === 'completed') {
+                    statusText.innerHTML = '✅ ' + event.data.message;
+                    statusArea.style.display = 'block';
+                    statusArea.style.background = 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)';
+                    // 3秒後に非表示
+                    setTimeout(() => {
+                        statusArea.style.display = 'none';
+                    }, 3000);
+                } else if (event.data.status === 'error') {
+                    statusText.innerHTML = '❌ ' + event.data.message;
+                    statusArea.style.display = 'block';
+                    statusArea.style.background = 'linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%)';
+                    // 5秒後に非表示
+                    setTimeout(() => {
+                        statusArea.style.display = 'none';
+                    }, 5000);
+                }
+            }
+        }
+    });
+    
+    // Chrome Translation API 事前ダウンロード機能
+    let currentTranslationPair = null; // 現在選択されている言語ペア
+    let pendingModels = []; // ダウンロード待ちのモデルリスト
+    
+    // ダウンロード待ちモデル数の表示を更新
+    function updateQueueStatus() {
+        const queueStatus = document.getElementById('modelQueueStatus');
+        if (queueStatus) {
+            if (pendingModels.length > 0) {
+                queueStatus.style.display = 'inline-block';
+                queueStatus.textContent = `📦 残り${pendingModels.length}個`;
+                
+                // 個数によって色を変える
+                if (pendingModels.length === 1) {
+                    queueStatus.style.background = 'rgba(76, 175, 80, 0.1)';
+                    queueStatus.style.color = '#4CAF50';
+                } else if (pendingModels.length <= 3) {
+                    queueStatus.style.background = 'rgba(255, 193, 7, 0.1)';
+                    queueStatus.style.color = '#f57c00';
+                } else {
+                    queueStatus.style.background = 'rgba(244, 67, 54, 0.1)';
+                    queueStatus.style.color = '#d32f2f';
+                }
+            } else {
+                queueStatus.style.display = 'none';
+            }
+        }
+    }
+    
+    // 全ての翻訳モデルをチェック（音声認識言語変更時用）
+    function checkAllTranslationModels() {
+        // 音声認識言語変更時は待機リストをクリア
+        pendingModels = [];
+        updateQueueStatus(); // キュー状態をリセット
+        
+        // ボタンの状態もリセット
+        const modelBtn = document.getElementById('preloadModelBtn');
+        const modelStatus = document.getElementById('modelStatusText');
+        if (modelBtn) {
+            modelBtn.disabled = false;
+            modelBtn.style.background = '#ff6b6b';
+        }
+        if (modelStatus) {
+            modelStatus.textContent = '';
+            modelStatus.style.color = '#333';
+        }
+        
+        // エラーを防ぐため、各チェックをtry-catchで囲む
+        try {
+            checkTranslationModel(1);
+        } catch (error) {
+            console.error('翻訳1モデルチェックエラー:', error);
+        }
+        try {
+            checkTranslationModel(2);
+        } catch (error) {
+            console.error('翻訳2モデルチェックエラー:', error);
+        }
+        try {
+            checkTranslationModel(3);
+        } catch (error) {
+            console.error('翻訳3モデルチェックエラー:', error);
+        }
+    }
+    
+    function checkTranslationModel(transNum = 1, event = null) {
+        // Chrome Translation APIが利用可能な場合のみ
+        if (!('Translator' in self)) return;
+        
+        const recogSelect = document.getElementById('recog');
+        let transSelectId = 'trans';
+        if (transNum === 2) transSelectId = 'trans2';
+        if (transNum === 3) transSelectId = 'trans3';
+        
+        const transSelect = document.getElementById(transSelectId);
+        const modelArea = document.getElementById('modelDownloadArea');
+        const modelBtn = document.getElementById('preloadModelBtn');
+        const modelStatus = document.getElementById('modelStatusText');
+        
+        if (!transSelect) return;
+        
+        const sourceLang = recogSelect.value;
+        const targetLang = transSelect.value;
+        
+        // 翻訳言語が選択されていない場合は何もしない
+        if (targetLang === 'none') {
+            // 翻訳1の場合のみボタンエリアを非表示
+            if (transNum === 1 && modelArea) {
+                modelArea.style.display = 'none';
+            }
+            currentTranslationPair = null;
+            return;
+        }
+        
+        // 同一言語の場合も何もしない（翻訳はスキップされる）
+        if (sourceLang === targetLang) {
+            if (transNum === 1 && modelArea) {
+                modelArea.style.display = 'none';
+            }
+            return;
+        }
+        
+        // iframe内のchromeTranslatorを取得
+        const iframe = document.getElementById('asr_frame');
+        if (!iframe || !iframe.contentWindow || !iframe.contentWindow.chromeTranslator) {
+            console.log('Chrome Translator が準備されていません');
+            return;
+        }
+        
+        const translator = iframe.contentWindow.chromeTranslator;
+        
+        // 言語コードを正規化
+        const normalizedSource = translator.normalizeLanguageCode(sourceLang);
+        const normalizedTarget = translator.normalizeLanguageCode(targetLang);
+        
+        currentTranslationPair = {
+            source: sourceLang,
+            target: targetLang,
+            normalizedSource: normalizedSource,
+            normalizedTarget: normalizedTarget
+        };
+        
+        // 言語名を取得
+        const targetLangName = transSelect.options[transSelect.selectedIndex].text;
+        
+        // 翻訳可能性をチェック（エラーハンドリング強化）
+        Translator.availability({
+            sourceLanguage: normalizedSource,
+            targetLanguage: normalizedTarget
+        }).then(availability => {
+            console.log(`翻訳${transNum} モデル状態: ${sourceLang} → ${targetLang} = ${availability}`);
+            
+            if (availability === 'downloadable') {
+                // ダウンロード可能な場合
+                console.log(`翻訳${transNum}用モデルをダウンロード可能: ${targetLangName}`);
+                
+                // イベントが渡されていれば（翻訳言語プルダウン変更時）自動ダウンロード
+                const isDirectUserGesture = event && (event.type === 'change');
+                
+                if (isDirectUserGesture) {
+                    // 翻訳言語プルダウン変更による直接的なユーザージェスチャー
+                    console.log(`翻訳${transNum}用モデルを自動ダウンロード開始（プルダウン変更）: ${targetLangName}`);
+                    translator.preloadLanguagePack(normalizedSource, normalizedTarget).then(() => {
+                    console.log(`翻訳${transNum}用モデルのダウンロード完了: ${targetLangName}`);
+                    // 翻訳1の場合のみボタンエリアを非表示に
+                    if (transNum === 1 && modelArea) {
+                        modelArea.style.display = 'none';
+                    }
+                    }).catch(error => {
+                        console.error(`翻訳${transNum}用モデルのダウンロードエラー:`, error);
+                        
+                        // エラー時は翻訳1の場合のみボタンを表示
+                        if (transNum === 1 && modelArea) {
+                            modelArea.style.display = 'block';
+                            modelBtn.style.display = 'inline-block';
+                            modelBtn.disabled = false;
+                            modelBtn.style.background = '#ff6b6b';
+                            modelBtn.innerHTML = `📥 ${targetLangName}モデルをダウンロード`;
+                            modelStatus.textContent = 'エラー: 手動でダウンロードしてください';
+                            modelStatus.style.color = '#f44336';
+                        }
+                    });
+                } else {
+                    // 音声認識言語変更による間接的な呼び出し
+                    console.log(`翻訳${transNum}用モデルは手動ダウンロードが必要（音声認識言語変更）: ${targetLangName}`);
+                    
+                    // 重複を避けてダウンロード待ちリストに追加
+                    const exists = pendingModels.some(m => 
+                        m.sourceLang === normalizedSource && 
+                        m.targetLang === normalizedTarget
+                    );
+                    
+                    if (!exists) {
+                        pendingModels.push({
+                            transNum: transNum,
+                            sourceLang: normalizedSource,
+                            targetLang: normalizedTarget,
+                            langName: targetLangName
+                        });
+                        updateQueueStatus(); // キュー状態を更新
+                    }
+                    
+                    // 翻訳1の場合のみボタンを表示
+                    if (transNum === 1 && modelArea) {
+                        modelArea.style.display = 'block';
+                        modelBtn.style.display = 'inline-block';
+                        modelBtn.disabled = false; // ボタンを有効化
+                        modelBtn.style.background = '#ff6b6b'; // 背景色をリセット（赤）
+                        modelBtn.innerHTML = `📥 ${targetLangName}モデルをダウンロード`;
+                        modelStatus.textContent = '音声認識言語変更後は手動ダウンロードが必要です';
+                        modelStatus.style.color = '#333'; // テキスト色もリセット
+                        
+                        // ボタンのクリックで最初のモデルをダウンロード
+                        currentTranslationPair = {
+                            source: sourceLang,
+                            target: targetLang,
+                            normalizedSource: normalizedSource,
+                            normalizedTarget: normalizedTarget
+                        };
+                    } else if (pendingModels.length > 1 && transNum === 1 && modelArea) {
+                        // 複数のモデルが待機中の場合は案内を表示
+                        modelStatus.textContent = `他に${pendingModels.length - 1}個のモデルがダウンロード待機中`;
+                    }
+                }
+            } else if (availability === 'available') {
+                // 既にダウンロード済み
+                console.log(`翻訳${transNum}用モデルは既にダウンロード済み: ${targetLangName}`);
+                if (transNum === 1 && modelArea) {
+                    modelArea.style.display = 'none';
+                }
+            } else {
+                // 利用不可
+                console.log(`翻訳${transNum}用モデルは利用不可: ${targetLangName} (${availability})`);
+                if (transNum === 1 && modelArea) {
+                    modelArea.style.display = 'none';
+                }
+            }
+        }).catch(error => {
+            console.error('翻訳可能性チェックエラー:', error);
+        });
+    }
+    
+    function preloadTranslationModel() {
+        // pendingModelsから最初のモデルを取得するか、currentTranslationPairを使用
+        let modelToDownload = null;
+        
+        if (pendingModels.length > 0) {
+            modelToDownload = pendingModels[0];
+        } else if (currentTranslationPair) {
+            modelToDownload = {
+                sourceLang: currentTranslationPair.normalizedSource,
+                targetLang: currentTranslationPair.normalizedTarget,
+                langName: currentTranslationPair.targetLangName || '翻訳言語'
+            };
+        }
+        
+        if (!modelToDownload) return;
+        
+        const modelBtn = document.getElementById('preloadModelBtn');
+        const modelStatus = document.getElementById('modelStatusText');
+        
+        // iframe内のchromeTranslatorを取得
+        const iframe = document.getElementById('asr_frame');
+        if (!iframe || !iframe.contentWindow || !iframe.contentWindow.chromeTranslator) {
+            alert('Chrome Translator が準備されていません。ページをリロードしてください。');
+            return;
+        }
+        
+        const translator = iframe.contentWindow.chromeTranslator;
+        
+        // モデル情報から言語名を取得
+        const targetLangName = modelToDownload.langName;
+        
+        // ボタンを無効化
+        modelBtn.disabled = true;
+        modelBtn.innerHTML = `📥 ${targetLangName}をダウンロード準備中...`;
+        modelStatus.textContent = '';
+        
+        // ダウンロード進捗を監視
+        translator.onDownloadStatusChange = (status) => {
+            if (status.status === 'downloading' && status.progress !== undefined) {
+                modelBtn.innerHTML = `⏳ ${targetLangName}をダウンロード中... ${status.progress}%`;
+                // プログレスバー表示（ボタンの背景として）
+                modelBtn.style.background = `linear-gradient(90deg, #4CAF50 ${status.progress}%, #ff6b6b ${status.progress}%)`;
+            }
+        };
+        
+        // 事前ダウンロードを実行
+        translator.preloadLanguagePack(modelToDownload.sourceLang, modelToDownload.targetLang).then(result => {
+            if (result) {
+                // 完了したモデルをリストから削除
+                if (pendingModels.length > 0) {
+                    pendingModels = pendingModels.filter(m => 
+                        !(m.sourceLang === modelToDownload.sourceLang && 
+                          m.targetLang === modelToDownload.targetLang)
+                    );
+                    updateQueueStatus(); // キュー状態を更新
+                }
+                
+                // 次のモデルがある場合
+                if (pendingModels.length > 0) {
+                    const nextModel = pendingModels[0];
+                    modelBtn.disabled = false;
+                    modelBtn.style.background = '#ff6b6b';
+                    modelBtn.innerHTML = `📥 ${nextModel.langName}モデルをダウンロード`;
+                    modelStatus.textContent = `✅ ${targetLangName}完了！`;
+                    modelStatus.style.color = '#4CAF50';
+                    
+                    // 次のモデル用にcurrentTranslationPairを更新
+                    currentTranslationPair = {
+                        normalizedSource: nextModel.sourceLang,
+                        normalizedTarget: nextModel.targetLang,
+                        targetLangName: nextModel.langName
+                    };
+                } else {
+                    // 全て完了
+                    modelBtn.style.display = 'none';
+                    modelStatus.textContent = '✅ 全モデルのダウンロード完了！';
+                    modelStatus.style.color = '#4CAF50';
+                    setTimeout(() => {
+                        const modelArea = document.getElementById('modelDownloadArea');
+                        if (modelArea) modelArea.style.display = 'none';
+                    }, 3000);
+                    currentTranslationPair = null;
+                }
+            } else {
+                modelBtn.disabled = false;
+                modelBtn.style.background = '#ff6b6b';
+                modelBtn.innerHTML = `📥 ${targetLangName}モデルをダウンロード`;
+                modelStatus.textContent = '❌ ダウンロード失敗';
+                modelStatus.style.color = '#f44336';
+            }
+        }).catch(error => {
+            console.error('事前ダウンロードエラー:', error);
+            modelBtn.disabled = false;
+            modelBtn.style.background = '#ff6b6b';
+            modelBtn.innerHTML = `📥 ${targetLangName}モデルをダウンロード`;
+            modelStatus.textContent = '❌ エラー: ' + error.message;
+            modelStatus.style.color = '#f44336';
+        });
+    }
+    
+    // ページ読み込み時に初期チェック
+    setTimeout(() => {
+        checkTranslationModel();
+    }, 2000);
 </script>
 
 </html>

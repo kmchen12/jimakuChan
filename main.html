@@ -557,45 +557,18 @@
         if (window.chromeTranslator) {
             // ダウンロード状態変更コールバックを設定
             window.chromeTranslator.onDownloadStatusChange = function(status) {
-                // 親ウィンドウ（設定画面）が存在し、frame_heightが100%（設定非表示）の場合は表示しない
-                let shouldShowStatus = true;
-                try {
-                    if (window.parent && window.parent !== window && window.parent.document) {
-                        const frameHeightEl = window.parent.document.getElementById('frame_height');
-                        if (frameHeightEl && frameHeightEl.value === '100%') {
-                            shouldShowStatus = false;
-                        }
-                    }
-                } catch (e) {
-                    // クロスオリジンエラーの場合は表示する
-                    shouldShowStatus = true;
-                }
-                
-                if (!shouldShowStatus) {
-                    // 設定画面が非表示の場合はダウンロード状況も表示しない
-                    return;
-                }
-                
-                let downloadStatusEl = document.getElementById('downloadStatus');
-                if (!downloadStatusEl) {
-                    // 要素がなければ作成
-                    downloadStatusEl = document.createElement('div');
-                    downloadStatusEl.id = 'downloadStatus';
-                    document.body.appendChild(downloadStatusEl);
-                }
-                
-                if (status.status === 'downloading') {
-                    downloadStatusEl.textContent = '🔄 ' + status.message;
-                    downloadStatusEl.className = 'downloading';
-                    downloadStatusEl.style.display = 'block';
-                } else if (status.status === 'completed') {
-                    downloadStatusEl.textContent = '✅ ' + status.message;
-                    downloadStatusEl.className = 'completed';
-                    downloadStatusEl.style.display = 'block';
-                    // 3秒後に非表示
-                    setTimeout(() => {
-                        downloadStatusEl.style.display = 'none';
-                    }, 3000);
+                // 親ウィンドウ（index.html）にメッセージを送信
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'downloadStatus',
+                        status: status.status,
+                        message: status.message,
+                        progress: status.progress, // 進捗率を追加
+                        downloadedSize: status.downloadedSize, // ダウンロード済みサイズ
+                        totalSize: status.totalSize, // 総サイズ
+                        sourceLang: status.sourceLang,
+                        targetLang: status.targetLang
+                    }, '*');
                 }
             };
             
@@ -608,12 +581,19 @@
                     if (arg_trans) {
                         const sourceLang = window.chromeTranslator.normalizeLanguageCode(trans_sourcelang);
                         const targetLang = window.chromeTranslator.normalizeLanguageCode(arg_trans);
-                        window.chromeTranslator.canTranslate(sourceLang, targetLang).then(canTranslate => {
-                            console.log(`翻訳1: ${trans_sourcelang} → ${arg_trans} (対応: ${canTranslate})`);
-                            if (canTranslate) {
-                                useChromeTranslation = true;
-                            }
-                        });
+                        
+                        // 音声認識言語と翻訳言語が同じ場合もChrome翻訳を使用する
+                        if (sourceLang === targetLang) {
+                            console.log(`翻訳1: ${trans_sourcelang} → ${arg_trans} (同一言語のためスキップ予定)`);
+                            useChromeTranslation = true;
+                        } else {
+                            window.chromeTranslator.canTranslate(sourceLang, targetLang).then(canTranslate => {
+                                console.log(`翻訳1: ${trans_sourcelang} → ${arg_trans} (対応: ${canTranslate})`);
+                                if (canTranslate) {
+                                    useChromeTranslation = true;
+                                }
+                            });
+                        }
                     }
                 }
             });
@@ -1073,30 +1053,77 @@
                         bouyomiChanClient.talk(recog_text);
                     }
 
+                    // 翻訳処理フラグ（重複実行を防ぐ）
+                    let translationProcessed = false;
+                    
                     // Chrome Translation APIを優先使用
-                    if (useChromeTranslation && chromeTranslationReady && arg_trans != null) {
-                        // Chrome Translationで翻訳
-                        const sourceLang = window.chromeTranslator.normalizeLanguageCode(trans_sourcelang);
-                        const targetLang = window.chromeTranslator.normalizeLanguageCode(arg_trans);
-                        
-                        updateTranslationStatus('Chrome翻訳中', '#4CAF50');
-                        
-                        window.chromeTranslator.translate(recog_text, sourceLang, targetLang)
-                            .then(translatedText => {
-                                // 翻訳結果を表示
-                                const filteredText = applyTranslationFilter(translatedText, 1);
-                                document.getElementById('trans_text-imb').innerHTML = filteredText;
-                                document.getElementById('trans_text-bg').innerHTML = filteredText;
-                                document.getElementById('trans_text-fg').innerHTML = filteredText;
-                                isTextTranslation1Complete = true;
+                    if (useChromeTranslation && chromeTranslationReady) {
+                        // 少なくとも1つの翻訳言語が設定されているか確認
+                        if (arg_trans != null || arg_trans2 != null || arg_trans3 != null) {
+                            translationProcessed = true; // Chrome翻訳を実行したことを記録
+                            
+                            // 翻訳開始ステータス（Chrome）
+                            var activeTranslations = [];
+                            if(arg_trans != null) activeTranslations.push('1');
+                            if(arg_trans2 != null) activeTranslations.push('2');
+                            if(arg_trans3 != null) activeTranslations.push('3');
+                            if(activeTranslations.length > 0) {
+                                updateTranslationStatus('Chrome翻訳中(' + activeTranslations.join(',') + ')', '#4CAF50');
+                            }
+                            
+                            // ソース言語を一度だけ取得
+                            const sourceLang = window.chromeTranslator.normalizeLanguageCode(trans_sourcelang);
+                            
+                            // 翻訳1言語目の処理
+                            if (arg_trans != null) {
+                                const targetLang = window.chromeTranslator.normalizeLanguageCode(arg_trans);
                                 
-                                updateTranslationStatus('Chrome翻訳完了', '#4CAF50');
-                                startTranslationDeleteTimer();
+                                // 音声認識言語と翻訳言語が同じ場合はスキップ
+                                if (sourceLang === targetLang) {
+                                    console.log('Chrome翻訳: 音声認識言語と翻訳言語1が同じため、翻訳をスキップします');
+                                    // 元のテキストをそのまま表示
+                                    const filteredText = applyTranslationFilter(recog_text, 1);
+                                    document.getElementById('trans_text-imb').innerHTML = filteredText;
+                                    document.getElementById('trans_text-bg').innerHTML = filteredText;
+                                    document.getElementById('trans_text-fg').innerHTML = filteredText;
+                                    isTextTranslation1Complete = true;
+                                    startTranslationDeleteTimer();
+                                } else {
+                                    window.chromeTranslator.translate(recog_text, sourceLang, targetLang)
+                                        .then(translatedText => {
+                                            // 翻訳結果を表示
+                                            const filteredText = applyTranslationFilter(translatedText, 1);
+                                            document.getElementById('trans_text-imb').innerHTML = filteredText;
+                                            document.getElementById('trans_text-bg').innerHTML = filteredText;
+                                            document.getElementById('trans_text-fg').innerHTML = filteredText;
+                                            isTextTranslation1Complete = true;
+                                            
+                                            updateTranslationStatus('Chrome翻訳完了', '#4CAF50');
+                                            startTranslationDeleteTimer();
+                                        })
+                                        .catch(error => {
+                                            console.error('Chrome AI 翻訳エラー:', error);
+                                            updateTranslationStatus('Chrome翻訳エラー', '#ff0000');
+                                            // フォールバックとしてGAS APIを使用
+                                            translationProcessed = false; // エラー時は翻訳未処理として扱う
+                                        });
+                                }
+                            }
+                            
+                            // 翻訳2言語目の処理
+                            if (arg_trans2 != null) {
+                                const targetLang2 = window.chromeTranslator.normalizeLanguageCode(arg_trans2);
                                 
-                                // 翻訳2言語目（Chrome Translation対応時）
-                                if (arg_trans2 != null && chromeTranslationReady) {
-                                    const targetLang2 = window.chromeTranslator.normalizeLanguageCode(arg_trans2);
-                                    
+                                // 音声認識言語と翻訳言語が同じ場合はスキップ
+                                if (sourceLang === targetLang2) {
+                                    console.log('Chrome翻訳: 音声認識言語と翻訳言語2が同じため、翻訳をスキップします');
+                                    const filteredText2 = applyTranslationFilter(recog_text, 2);
+                                    document.getElementById('trans_text2-imb').innerHTML = filteredText2;
+                                    document.getElementById('trans_text2-bg').innerHTML = filteredText2;
+                                    document.getElementById('trans_text2-fg').innerHTML = filteredText2;
+                                    isTextTranslation2Complete = true;
+                                    startTranslationDeleteTimer();
+                                } else {
                                     window.chromeTranslator.canTranslate(sourceLang, targetLang2).then(canTranslate2 => {
                                         if (canTranslate2) {
                                             return window.chromeTranslator.translate(recog_text, sourceLang, targetLang2);
@@ -1114,11 +1141,22 @@
                                         console.error('Chrome Translation 翻訳2エラー:', error);
                                     });
                                 }
+                            }
+                            
+                            // 翻訳3言語目の処理
+                            if (arg_trans3 != null) {
+                                const targetLang3 = window.chromeTranslator.normalizeLanguageCode(arg_trans3);
                                 
-                                // 翻訳3言語目（Chrome Translation対応時）
-                                if (arg_trans3 != null && chromeTranslationReady) {
-                                    const targetLang3 = window.chromeTranslator.normalizeLanguageCode(arg_trans3);
-                                    
+                                // 音声認識言語と翻訳言語が同じ場合はスキップ
+                                if (sourceLang === targetLang3) {
+                                    console.log('Chrome翻訳: 音声認識言語と翻訳言語3が同じため、翻訳をスキップします');
+                                    const filteredText3 = applyTranslationFilter(recog_text, 3);
+                                    document.getElementById('trans_text3-imb').innerHTML = filteredText3;
+                                    document.getElementById('trans_text3-bg').innerHTML = filteredText3;
+                                    document.getElementById('trans_text3-fg').innerHTML = filteredText3;
+                                    isTextTranslation3Complete = true;
+                                    startTranslationDeleteTimer();
+                                } else {
                                     window.chromeTranslator.canTranslate(sourceLang, targetLang3).then(canTranslate3 => {
                                         if (canTranslate3) {
                                             return window.chromeTranslator.translate(recog_text, sourceLang, targetLang3);
@@ -1136,32 +1174,38 @@
                                         console.error('Chrome Translation 翻訳3エラー:', error);
                                     });
                                 }
-                            })
-                            .catch(error => {
-                                console.error('Chrome AI 翻訳エラー:', error);
-                                updateTranslationStatus('Chrome翻訳エラー', '#ff0000');
-                                // フォールバックとしてGAS APIを使用
-                                useChromeTranslation = false;
-                            });
-                    }
-                    // Chrome Translation APIが使用できない場合はGAS APIを使用
-                    else if(gas_key != null && !useChromeTranslation){
+                            }
+                        }  // Chrome翻訳の翻訳言語設定チェックの終了
+                    }  // Chrome翻訳APIの使用条件チェックの終了
+                    // Chrome Translation APIが使用できない場合、かつまだ翻訳処理をしていない場合はGAS APIを使用
+                    else if(gas_key != null && !translationProcessed){
                         
-                        // 翻訳開始ステータス
+                        // 翻訳開始ステータス（GAS）
                         var activeTranslations = [];
                         if(arg_trans != null) activeTranslations.push('1');
                         if(arg_trans2 != null) activeTranslations.push('2');
                         if(arg_trans3 != null) activeTranslations.push('3');
                         if(activeTranslations.length > 0) {
-                            updateTranslationStatus('翻訳中(' + activeTranslations.join(',') + ')', '#0066cc');
+                            updateTranslationStatus('GAS翻訳中(' + activeTranslations.join(',') + ')', '#0066cc');
                         }
 
                         // 翻訳1言語目
                         if(arg_trans != null){
                             const processedText = applyCustomDictionary(recog_text);
                             const sourceLang = getTranslationLanguageId(trans_sourcelang);
-                            query = TRANS_URL + '?text=' + encodeURIComponent(processedText) + '&source=' + sourceLang + '&target=' + trans_destlang;
-                            request.open('GET', query, true);
+                            
+                            // 音声認識言語と翻訳言語が同じ場合はAPIを呼ばずにそのまま表示
+                            if(sourceLang === trans_destlang) {
+                                console.log('GAS API: 音声認識言語と翻訳言語が同じため、翻訳をスキップします');
+                                const filteredText = applyTranslationFilter(recog_text, 1);
+                                document.getElementById('trans_text-imb').innerHTML = filteredText;
+                                document.getElementById('trans_text-bg').innerHTML = filteredText;
+                                document.getElementById('trans_text-fg').innerHTML = filteredText;
+                                isTextTranslation1Complete = true;
+                                startTranslationDeleteTimer();
+                            } else {
+                                query = TRANS_URL + '?text=' + encodeURIComponent(processedText) + '&source=' + sourceLang + '&target=' + trans_destlang;
+                                request.open('GET', query, true);
 
                             request.onreadystatechange = function(){
                                 if (request.readyState === 4 && request.status === 200){
@@ -1220,13 +1264,25 @@
                                 }
                             }
                             request.send(null);
+                            }
                         }
 
                         // 翻訳2言語目
                         if(arg_trans2 != null){
                             const processedText2 = applyCustomDictionary(recog_text);
                             const sourceLang2 = getTranslationLanguageId(trans_sourcelang);
-                            query2 = TRANS_URL + '?text=' + encodeURIComponent(processedText2) + '&source=' + sourceLang2 + '&target=' + trans2_destlang;
+                            
+                            // 音声認識言語と翻訳言語が同じ場合はAPIを呼ばずにそのまま表示
+                            if(sourceLang2 === trans2_destlang) {
+                                console.log('GAS API: 音声認識言語と翻訳言語2が同じため、翻訳をスキップします');
+                                const filteredText2 = applyTranslationFilter(recog_text, 2);
+                                document.getElementById('trans_text2-imb').innerHTML = filteredText2;
+                                document.getElementById('trans_text2-bg').innerHTML = filteredText2;
+                                document.getElementById('trans_text2-fg').innerHTML = filteredText2;
+                                isTextTranslation2Complete = true;
+                                startTranslationDeleteTimer();
+                            } else {
+                                query2 = TRANS_URL + '?text=' + encodeURIComponent(processedText2) + '&source=' + sourceLang2 + '&target=' + trans2_destlang;
                             request2.open('GET', query2, true);
 
                             request2.onreadystatechange = function(){
@@ -1287,13 +1343,25 @@
                                 }
                             }
                             request2.send(null);
+                            }
                         }
 
-                        // 翻訳2言語目
+                        // 翻訳3言語目
                         if(arg_trans3 != null){
                             const processedText3 = applyCustomDictionary(recog_text);
                             const sourceLang3 = getTranslationLanguageId(trans_sourcelang);
-                            query3 = TRANS_URL + '?text=' + encodeURIComponent(processedText3) + '&source=' + sourceLang3 + '&target=' + trans3_destlang;
+                            
+                            // 音声認識言語と翻訳言語が同じ場合はAPIを呼ばずにそのまま表示
+                            if(sourceLang3 === trans3_destlang) {
+                                console.log('GAS API: 音声認識言語と翻訳言語3が同じため、翻訳をスキップします');
+                                const filteredText3 = applyTranslationFilter(recog_text, 3);
+                                document.getElementById('trans_text3-imb').innerHTML = filteredText3;
+                                document.getElementById('trans_text3-bg').innerHTML = filteredText3;
+                                document.getElementById('trans_text3-fg').innerHTML = filteredText3;
+                                isTextTranslation3Complete = true;
+                                startTranslationDeleteTimer();
+                            } else {
+                                query3 = TRANS_URL + '?text=' + encodeURIComponent(processedText3) + '&source=' + sourceLang3 + '&target=' + trans3_destlang;
                             request3.open('GET', query3, true);
 
                             request3.onreadystatechange = function(){
@@ -1354,6 +1422,7 @@
                                 }
                             }
                             request3.send(null);
+                            }
                         }
 
                     } else {
@@ -1477,7 +1546,7 @@
 
 // バージョン情報の表示 ---------------------------------
 const SoftwareTitle = "音声認識字幕ちゃん";
-const SoftwareVersion = "2025.8.17 20:06";
+const SoftwareVersion = "2025.8.19 19:33";
 const SoftwareDeveloper = "[開発者：さぁたん ＆ さよなりω/(大学教員)西村良太]"
 
 // Web Speech API使用時のデバイス制限について

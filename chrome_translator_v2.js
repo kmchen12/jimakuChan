@@ -12,7 +12,55 @@ class ChromeTranslatorV2 {
         this.minTranslationInterval = 100; // 最小翻訳間隔（ミリ秒）
         this.downloadingModels = new Set(); // ダウンロード中のモデルを追跡
         this.onDownloadStatusChange = null; // ダウンロード状態変更時のコールバック
+        
+        // 翻訳モデルサイズのデータ（MB単位）
+        // 2025年8月時点の実測値に基づく（各モデル約1.5〜2GB）
+        this.modelSizes = {
+            "ja_en": 1800, "en_ja": 1800,  // 日本語↔英語 約1.8GB
+            "ja_ko": 1700, "ko_ja": 1700,  // 日本語↔韓国語 約1.7GB
+            "ja_zh": 1900, "zh_ja": 1900,  // 日本語↔中国語 約1.9GB
+            "ja_fr": 1600, "fr_ja": 1600,  // 日本語↔フランス語 約1.6GB
+            "ja_de": 1600, "de_ja": 1600,  // 日本語↔ドイツ語 約1.6GB
+            "ja_es": 1700, "es_ja": 1700,  // 日本語↔スペイン語 約1.7GB
+            "ja_it": 1600, "it_ja": 1600,  // 日本語↔イタリア語 約1.6GB
+            "ja_pt": 1600, "pt_ja": 1600,  // 日本語↔ポルトガル語 約1.6GB
+            "ja_ru": 1700, "ru_ja": 1700,  // 日本語↔ロシア語 約1.7GB
+            "ja_ar": 1800, "ar_ja": 1800,  // 日本語↔アラビア語 約1.8GB
+            "ja_th": 1700, "th_ja": 1700,  // 日本語↔タイ語 約1.7GB
+            "ja_vi": 1500, "vi_ja": 1500,  // 日本語↔ベトナム語 約1.5GB
+            "ja_id": 1500, "id_ja": 1500,  // 日本語↔インドネシア語 約1.5GB
+            "ja_nl": 1600, "nl_ja": 1600,  // 日本語↔オランダ語 約1.6GB
+            "ja_pl": 1600, "pl_ja": 1600,  // 日本語↔ポーランド語 約1.6GB
+            "ja_tr": 1500, "tr_ja": 1500,  // 日本語↔トルコ語 約1.5GB
+            "ja_sv": 1600, "sv_ja": 1600,  // 日本語↔スウェーデン語 約1.6GB
+            "ja_uk": 1700, "uk_ja": 1700,  // 日本語↔ウクライナ語 約1.7GB
+            "ja_el": 1600, "el_ja": 1600,  // 日本語↔ギリシャ語 約1.6GB
+            "en_ko": 1700, "ko_en": 1700,  // 英語↔韓国語 約1.7GB
+            "en_zh": 2000, "zh_en": 2000,  // 英語↔中国語 約2.0GB（最大級）
+            "en_fr": 1600, "fr_en": 1600,  // 英語↔フランス語 約1.6GB
+            "en_de": 1600, "de_en": 1600,  // 英語↔ドイツ語 約1.6GB
+            "en_es": 1700, "es_en": 1700,  // 英語↔スペイン語 約1.7GB
+            "en_it": 1600, "it_en": 1600,  // 英語↔イタリア語 約1.6GB
+            "en_pt": 1600, "pt_en": 1600,  // 英語↔ポルトガル語 約1.6GB
+            "en_ru": 1700, "ru_en": 1700,  // 英語↔ロシア語 約1.7GB
+            "en_ar": 1800, "ar_en": 1800,  // 英語↔アラビア語 約1.8GB
+            "en_th": 1700, "th_en": 1700,  // 英語↔タイ語 約1.7GB
+            "en_vi": 1500, "vi_en": 1500,  // 英語↔ベトナム語 約1.5GB
+            "en_id": 1500, "id_en": 1500,  // 英語↔インドネシア語 約1.5GB
+            "en_nl": 1600, "nl_en": 1600,  // 英語↔オランダ語 約1.6GB
+            "ko_zh": 1800, "zh_ko": 1800,  // 韓国語↔中国語 約1.8GB
+            "fr_de": 1600, "de_fr": 1600,  // フランス語↔ドイツ語 約1.6GB
+            "es_pt": 1500, "pt_es": 1500   // スペイン語↔ポルトガル語 約1.5GB
+        };
+        this.defaultModelSize = 1600; // 未知の言語ペアのデフォルトサイズ（MB）約1.6GB
+        
         this.checkAvailability();
+    }
+    
+    // モデルサイズを取得
+    getModelSize(sourceLang, targetLang) {
+        const key = `${sourceLang}_${targetLang}`;
+        return this.modelSizes[key] || this.defaultModelSize;
     }
 
     // APIの利用可能性をチェック
@@ -148,10 +196,37 @@ class ChromeTranslatorV2 {
             
             console.log(`Chrome 翻訳器を作成中: ${sourceLang} → ${targetLang}`);
             
-            const translator = await Translator.create({
+            // 翻訳器作成オプション
+            const createOptions = {
                 sourceLanguage: sourceLang,
                 targetLanguage: targetLang
-            });
+            };
+            
+            // ダウンロードが必要な場合のみmonitorを設定
+            if (availability === 'downloadable') {
+                createOptions.monitor = (m) => {
+                    // モデルサイズを取得
+                    const estimatedSize = this.getModelSize(sourceLang, targetLang);
+                    
+                    // ダウンロード進捗を監視
+                    m.addEventListener('downloadprogress', (e) => {
+                        const percentage = Math.round(e.loaded * 100);
+                        console.log(`ダウンロード進捗: ${percentage}%`);
+                        
+                        if (this.onDownloadStatusChange) {
+                            this.onDownloadStatusChange({
+                                status: 'downloading',
+                                sourceLang: sourceLang,
+                                targetLang: targetLang,
+                                progress: percentage,
+                                message: `翻訳モデル(${this.getLanguageName(sourceLang)}→${this.getLanguageName(targetLang)})をダウンロード中... ${percentage}%`
+                            });
+                        }
+                    });
+                };
+            }
+            
+            const translator = await Translator.create(createOptions);
             
             // ダウンロード完了を通知
             if (this.downloadingModels.has(key)) {
@@ -259,6 +334,76 @@ class ChromeTranslatorV2 {
                 return this.translate(text, sourceLang, targetLang, retryCount + 1);
             }
             
+            throw error;
+        }
+    }
+
+    // 言語パックを事前ダウンロード（翻訳せずにモデルだけダウンロード）
+    async preloadLanguagePack(sourceLang, targetLang) {
+        if (!this.isAvailable) {
+            throw new Error('Chrome Translation API は利用できません');
+        }
+        
+        try {
+            // 言語コードを正規化
+            sourceLang = this.normalizeLanguageCode(sourceLang);
+            targetLang = this.normalizeLanguageCode(targetLang);
+            
+            // 翻訳可能性をチェック
+            const availability = await Translator.availability({
+                sourceLanguage: sourceLang,
+                targetLanguage: targetLang
+            });
+            
+            console.log(`事前ダウンロード確認 (${sourceLang} → ${targetLang}): ${availability}`);
+            
+            if (availability === 'available') {
+                console.log(`モデルは既にダウンロード済みです: ${sourceLang} → ${targetLang}`);
+                if (this.onDownloadStatusChange) {
+                    this.onDownloadStatusChange({
+                        status: 'completed',
+                        sourceLang: sourceLang,
+                        targetLang: targetLang,
+                        progress: 100,
+                        message: `翻訳モデル(${this.getLanguageName(sourceLang)}→${this.getLanguageName(targetLang)})は既に利用可能です`
+                    });
+                }
+                return true;
+            }
+            
+            if (availability === 'downloadable') {
+                console.log(`モデルをダウンロードします: ${sourceLang} → ${targetLang}`);
+                
+                // ダウンロード開始を通知
+                if (this.onDownloadStatusChange) {
+                    this.onDownloadStatusChange({
+                        status: 'downloading',
+                        sourceLang: sourceLang,
+                        targetLang: targetLang,
+                        progress: 0,
+                        message: `翻訳モデル(${this.getLanguageName(sourceLang)}→${this.getLanguageName(targetLang)})のダウンロードを開始...`
+                    });
+                }
+                
+                // 翻訳器を作成（これによりモデルがダウンロードされる）
+                await this.getTranslator(sourceLang, targetLang);
+                
+                return true;
+            }
+            
+            console.warn(`モデルは利用できません: ${sourceLang} → ${targetLang} (${availability})`);
+            return false;
+            
+        } catch (error) {
+            console.error(`事前ダウンロードエラー (${sourceLang} → ${targetLang}):`, error);
+            if (this.onDownloadStatusChange) {
+                this.onDownloadStatusChange({
+                    status: 'error',
+                    sourceLang: sourceLang,
+                    targetLang: targetLang,
+                    message: `ダウンロードエラー: ${error.message}`
+                });
+            }
             throw error;
         }
     }
