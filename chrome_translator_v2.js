@@ -189,7 +189,8 @@ class ChromeTranslatorV2 {
                         status: 'downloading',
                         sourceLang: sourceLang,
                         targetLang: targetLang,
-                        message: `翻訳モデル(${this.getLanguageName(sourceLang)}→${this.getLanguageName(targetLang)})をダウンロード中...`
+                        progress: 0,
+                        message: `翻訳モデル(${this.getLanguageName(sourceLang)}→${this.getLanguageName(targetLang)})をダウンロード開始...`
                     });
                 }
             }

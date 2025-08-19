@@ -29,7 +29,7 @@
     </script>
     <!-- END: Google tag (gtag.js) -->
 
-    <title>jimakuChan: 音声認識字幕ちゃん v2025.8.19 19:33 [CONFIG]</title>
+    <title>jimakuChan: 音声認識字幕ちゃん v2025.8.19 21:45 [CONFIG]</title>
 
     <style type="text/css">
         /* グローバルなbox-sizingリセット */
@@ -3200,7 +3200,59 @@ window.addEventListener('DOMContentLoaded', function() {
     // iframeからのダウンロード状況メッセージを受信
     window.addEventListener('message', function(event) {
         // セキュリティのため、信頼できるソースからのメッセージのみ処理
-        if (event.data && event.data.type === 'downloadStatus') {
+        if (event.data && event.data.type === 'modelDownloadRequired') {
+            // 音声認識後の翻訳でモデルダウンロードが必要な場合
+            console.log('音声認識後の翻訳でモデルダウンロードが必要:', event.data);
+            
+            // 既にpendingModelsに含まれているか確認
+            const exists = pendingModels.some(m => 
+                m.sourceLang === event.data.sourceLang && 
+                m.targetLang === event.data.targetLang
+            );
+            
+            if (!exists) {
+                // pendingModelsに追加
+                pendingModels.push({
+                    sourceLang: event.data.sourceLang,
+                    targetLang: event.data.targetLang,
+                    translationNum: event.data.translationNum
+                });
+                
+                // ダウンロードボタンを表示
+                const modelArea = document.getElementById('modelDownloadArea');
+                const btn = document.getElementById('preloadModelBtn');
+                
+                if (modelArea && btn) {
+                    // 最初のモデル情報を表示
+                    const firstModel = pendingModels[0];
+                    const sourceDisplayName = getLanguageDisplayName(firstModel.sourceLang);
+                    const targetDisplayName = getLanguageDisplayName(firstModel.targetLang);
+                    
+                    btn.textContent = `📥 ${sourceDisplayName}→${targetDisplayName}のモデルをダウンロード`;
+                    btn.disabled = false;
+                    btn.style.backgroundColor = '#4CAF50';
+                    btn.style.color = 'white';
+                    
+                    modelArea.style.display = 'block';
+                    
+                    // ダウンロード状況も表示
+                    const statusArea = document.getElementById('downloadStatusArea');
+                    const statusText = document.getElementById('downloadStatusText');
+                    if (statusArea && statusText) {
+                        statusText.innerHTML = `⚠️ 音声認識後の翻訳にモデルが必要です`;
+                        statusArea.style.display = 'block';
+                        statusArea.style.background = 'linear-gradient(135deg, #fff3cd 0%, #ffe8a1 100%)';
+                        
+                        // 5秒後に非表示
+                        setTimeout(() => {
+                            statusArea.style.display = 'none';
+                        }, 5000);
+                    }
+                }
+                
+                updateQueueStatus();
+            }
+        } else if (event.data && event.data.type === 'downloadStatus') {
             const statusArea = document.getElementById('downloadStatusArea');
             const statusText = document.getElementById('downloadStatusText');
             
@@ -3328,19 +3380,12 @@ window.addEventListener('DOMContentLoaded', function() {
         
         // 翻訳言語が選択されていない場合は何もしない
         if (targetLang === 'none') {
-            // 翻訳1の場合のみボタンエリアを非表示
-            if (transNum === 1 && modelArea) {
-                modelArea.style.display = 'none';
-            }
             currentTranslationPair = null;
             return;
         }
         
         // 同一言語の場合も何もしない（翻訳はスキップされる）
         if (sourceLang === targetLang) {
-            if (transNum === 1 && modelArea) {
-                modelArea.style.display = 'none';
-            }
             return;
         }
         
@@ -3384,12 +3429,44 @@ window.addEventListener('DOMContentLoaded', function() {
                 if (isDirectUserGesture) {
                     // 翻訳言語プルダウン変更による直接的なユーザージェスチャー
                     console.log(`翻訳${transNum}用モデルを自動ダウンロード開始（プルダウン変更）: ${targetLangName}`);
+                    
+                    // pendingModelsから該当するモデルを削除
+                    pendingModels = pendingModels.filter(m => 
+                        !(m.sourceLang === normalizedSource && 
+                          m.targetLang === normalizedTarget)
+                    );
+                    updateQueueStatus();
+                    
                     translator.preloadLanguagePack(normalizedSource, normalizedTarget).then(() => {
-                    console.log(`翻訳${transNum}用モデルのダウンロード完了: ${targetLangName}`);
-                    // 翻訳1の場合のみボタンエリアを非表示に
-                    if (transNum === 1 && modelArea) {
-                        modelArea.style.display = 'none';
-                    }
+                        console.log(`翻訳${transNum}用モデルのダウンロード完了: ${targetLangName}`);
+                        
+                        // pendingModelsに残りがあるか確認
+                        if (pendingModels.length > 0) {
+                            // 残りがある場合は次のモデルのボタンを表示
+                            const nextModel = pendingModels[0];
+                            if (modelArea && modelBtn) {
+                                modelArea.style.display = 'block';
+                                modelBtn.style.display = 'inline-block';
+                                modelBtn.disabled = false;
+                                modelBtn.style.background = '#ff6b6b';
+                                modelBtn.innerHTML = `📥 ${nextModel.langName}モデルをダウンロード`;
+                                modelStatus.textContent = `✅ ${targetLangName}完了！`;
+                                modelStatus.style.color = '#4CAF50';
+                                
+                                // currentTranslationPairを更新
+                                currentTranslationPair = {
+                                    source: nextModel.sourceLang,
+                                    target: nextModel.targetLang,
+                                    normalizedSource: nextModel.sourceLang,
+                                    normalizedTarget: nextModel.targetLang
+                                };
+                            }
+                        } else {
+                            // 全て完了した場合のみボタンエリアを非表示に
+                            if (transNum === 1 && modelArea) {
+                                modelArea.style.display = 'none';
+                            }
+                        }
                     }).catch(error => {
                         console.error(`翻訳${transNum}用モデルのダウンロードエラー:`, error);
                         
@@ -3424,13 +3501,14 @@ window.addEventListener('DOMContentLoaded', function() {
                         updateQueueStatus(); // キュー状態を更新
                     }
                     
-                    // 翻訳1の場合のみボタンを表示
-                    if (transNum === 1 && modelArea) {
+                    // pendingModelsに何かある場合は最初のモデルのボタンを表示
+                    if (pendingModels.length > 0 && modelArea && modelBtn) {
+                        const firstModel = pendingModels[0];
                         modelArea.style.display = 'block';
                         modelBtn.style.display = 'inline-block';
                         modelBtn.disabled = false; // ボタンを有効化
                         modelBtn.style.background = '#ff6b6b'; // 背景色をリセット（赤）
-                        modelBtn.innerHTML = `📥 ${targetLangName}モデルをダウンロード`;
+                        modelBtn.innerHTML = `📥 ${firstModel.langName}モデルをダウンロード`;
                         modelStatus.textContent = '音声認識言語変更後は手動ダウンロードが必要です';
                         modelStatus.style.color = '#333'; // テキスト色もリセット
                         
@@ -3449,13 +3527,15 @@ window.addEventListener('DOMContentLoaded', function() {
             } else if (availability === 'available') {
                 // 既にダウンロード済み
                 console.log(`翻訳${transNum}用モデルは既にダウンロード済み: ${targetLangName}`);
-                if (transNum === 1 && modelArea) {
+                // すべてのモデルがダウンロード済みでpendingModelsが空の場合のみボタンエリアを非表示
+                if (pendingModels.length === 0 && modelArea) {
                     modelArea.style.display = 'none';
                 }
             } else {
                 // 利用不可
                 console.log(`翻訳${transNum}用モデルは利用不可: ${targetLangName} (${availability})`);
-                if (transNum === 1 && modelArea) {
+                // すべてのモデルが利用不可でpendingModelsが空の場合のみボタンエリアを非表示
+                if (pendingModels.length === 0 && modelArea) {
                     modelArea.style.display = 'none';
                 }
             }
