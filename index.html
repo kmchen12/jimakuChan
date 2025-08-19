@@ -344,7 +344,7 @@ PC内フォント：<select id="speech_text_system_font" onchange="applySystemFo
 <span id="font_api_status" style="font-size: 12px; margin-left: 10px;"></span><br>
 
 翻訳言語（１）：
-<select id="trans" onchange="updateOptionValues(only_url=false); checkTranslationModel(1, event);">
+<select id="trans" onchange="updateOptionValues(only_url=false, transNum=1); checkTranslationModel(1, event);">
     <option value="none" selected>なし</option>
     <option value="ja">日本語</option>
     <option value="en">英語</option>
@@ -406,7 +406,7 @@ PC内フォント：<select id="trans_text_system_font" onchange="applySystemFon
 <input type="text" id="trans_text_direct_font" placeholder="フォント名を入力" style="width: 200px; margin-left: 10px;" disabled oninput="applyDirectFont(this.value, 'trans_text'); updateOptionValues();"><br>
 
 翻訳言語（２）：
-<select id="trans2" onchange="updateOptionValues(only_url=false); checkTranslationModel(2, event);">
+<select id="trans2" onchange="updateOptionValues(only_url=false, transNum=2); checkTranslationModel(2, event);">
     <option value="none" selected>なし</option>
     <option value="ja">日本語</option>
     <option value="en">英語</option>
@@ -468,7 +468,7 @@ PC内フォント：<select id="trans_text2_system_font" onchange="applySystemFo
 <input type="text" id="trans_text2_direct_font" placeholder="フォント名を入力" style="width: 200px; margin-left: 10px;" disabled oninput="applyDirectFont(this.value, 'trans_text2'); updateOptionValues();"><br>
 
 翻訳言語（３）：
-<select id="trans3" onchange="updateOptionValues(only_url=false); checkTranslationModel(3, event);">
+<select id="trans3" onchange="updateOptionValues(only_url=false, transNum=3); checkTranslationModel(3, event);">
     <option value="none" selected>なし</option>
     <option value="ja">日本語</option>
     <option value="en">英語</option>
@@ -900,8 +900,29 @@ window.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // iframe内の翻訳言語を動的に更新
+    function updateTranslationLanguageInIframe(transNum, newLang) {
+        const iframe = document.getElementById('asr_frame');
+        if (!iframe || !iframe.contentWindow) return;
+        
+        try {
+            // iframe内のグローバル変数を更新
+            if (transNum === 1) {
+                iframe.contentWindow.arg_trans = newLang === 'none' ? null : newLang;
+            } else if (transNum === 2) {
+                iframe.contentWindow.arg_trans2 = newLang === 'none' ? null : newLang;
+            } else if (transNum === 3) {
+                iframe.contentWindow.arg_trans3 = newLang === 'none' ? null : newLang;
+            }
+            
+            console.log(`翻訳言語${transNum}を${newLang}に更新しました`);
+        } catch (error) {
+            console.error('iframe内の翻訳言語更新エラー:', error);
+        }
+    }
+    
     // URLに付けるオプションの値をアップデート //////////
-    function updateOptionValues(only_url=false) {
+    function updateOptionValues(only_url=false, transNum=null) {
         for (const p of config_values) {
             eval("var " + p + " = document.getElementById('" + p + "').value;");
         }
@@ -1039,8 +1060,20 @@ window.addEventListener('DOMContentLoaded', function() {
 
         // 認識ちゃん画面の更新 ///////
         if(only_url == false) {
-            console.log('iframe更新 URL:', new_url);
-            document.getElementById('asr_frame').src = new_url;
+            // 翻訃言語変更時はiframe内の変数を更新（リロードせず）
+            if (transNum !== null) {
+                if (transNum === 1) {
+                    updateTranslationLanguageInIframe(1, trans);
+                } else if (transNum === 2) {
+                    updateTranslationLanguageInIframe(2, trans2);
+                } else if (transNum === 3) {
+                    updateTranslationLanguageInIframe(3, trans3);
+                }
+            } else {
+                // 翻訳言語以外の変更時はリロード
+                console.log('iframe更新 URL:', new_url);
+                document.getElementById('asr_frame').src = new_url;
+            }
         }
 
         // document.getElementById('url').innerHTML = new_url;
