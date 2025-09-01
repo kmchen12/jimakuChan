@@ -12,6 +12,12 @@ class ChromeTranslatorV2 {
         this.minTranslationInterval = 100; // 最小翻訳間隔（ミリ秒）
         this.downloadingModels = new Set(); // ダウンロード中のモデルを追跡
         this.onDownloadStatusChange = null; // ダウンロード状態変更時のコールバック
+        this.cleanupTimer = null; // 定期クリーンアップタイマー
+        this.translationCount = 0; // 翻訳回数カウンター
+        this.maxTranslationsBeforeCleanup = 1000; // クリーンアップ実行の翻訳回数閾値
+        
+        // 定期的なメモリクリーンアップを開始（30分間隔）
+        this.startPeriodicCleanup();
         
         // 翻訳モデルサイズのデータ（MB単位）
         // 2025年8月時点の実測値に基づく（各モデル約1.5〜2GB）
@@ -306,6 +312,16 @@ class ChromeTranslatorV2 {
             
             console.log(`翻訳完了 (${Math.round(endTime - startTime)}ms): ${text.substring(0, 50)}... → ${result.substring(0, 50)}...`);
             
+            // 翻訳回数をカウント
+            this.translationCount++;
+            
+            // 一定回数ごとにメモリクリーンアップを実行
+            if (this.translationCount % this.maxTranslationsBeforeCleanup === 0) {
+                console.log(`${this.translationCount}回翻訳完了。メモリクリーンアップを実行します。`);
+                // 非同期でクリーンアップを実行（翻訳処理をブロックしない）
+                setTimeout(() => this.performMemoryCleanup(), 100);
+            }
+            
             return result;
             
         } catch (error) {
@@ -433,8 +449,66 @@ class ChromeTranslatorV2 {
         return results;
     }
 
+    // 定期的なメモリクリーンアップを開始
+    startPeriodicCleanup() {
+        // 30分間隔でクリーンアップを実行
+        this.cleanupTimer = setInterval(() => {
+            this.performMemoryCleanup();
+        }, 30 * 60 * 1000); // 30分
+    }
+    
+    // メモリクリーンアップを実行
+    async performMemoryCleanup() {
+        console.log('定期メモリクリーンアップを実行中...');
+        
+        try {
+            // 古い翻訳器を削除（最近使用されていないもの）
+            const now = Date.now();
+            const CLEANUP_THRESHOLD = 20 * 60 * 1000; // 20分間未使用なら削除
+            
+            const keysToRemove = [];
+            for (const [key, translator] of this.translators) {
+                const lastUsed = this.lastTranslationTime.get(key) || 0;
+                if (now - lastUsed > CLEANUP_THRESHOLD) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            // 古い翻訳器を削除
+            for (const key of keysToRemove) {
+                const translator = this.translators.get(key);
+                if (translator && typeof translator.destroy === 'function') {
+                    try {
+                        await translator.destroy();
+                    } catch (error) {
+                        console.warn(`翻訳器削除エラー (${key}):`, error);
+                    }
+                }
+                this.translators.delete(key);
+                this.lastTranslationTime.delete(key);
+                console.log(`古い翻訳器を削除: ${key}`);
+            }
+            
+            // JavaScript のガベージコレクションを促す
+            if (window.gc && typeof window.gc === 'function') {
+                window.gc();
+            }
+            
+            console.log(`メモリクリーンアップ完了。削除した翻訳器: ${keysToRemove.length}個`);
+            
+        } catch (error) {
+            console.error('メモリクリーンアップエラー:', error);
+        }
+    }
+    
     // リソースのクリーンアップ
     async cleanup() {
+        // 定期クリーンアップタイマーを停止
+        if (this.cleanupTimer) {
+            clearInterval(this.cleanupTimer);
+            this.cleanupTimer = null;
+        }
+        
         // 翻訳器のクリーンアップ
         for (const [key, translator] of this.translators) {
             try {
