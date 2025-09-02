@@ -599,12 +599,7 @@ PC内フォント：<select id="trans_text3_system_font" onchange="applySystemFo
 <HR>
 
 
-<div id="audioLevelMeter" style="margin: 5px 0;">
-    音声レベル: <div style="display: inline-block; width: 200px; height: 10px; border: 1px solid #ccc; background: #f0f0f0; position: relative; overflow: hidden;">
-        <div style="position: absolute; width: 100%; height: 100%; background: linear-gradient(to right, #4CAF50 0%, #4CAF50 50%, #FFC107 75%, #FF5722 100%);"></div>
-        <div id="audioLevelCover" style="position: absolute; right: 0; width: 100%; height: 100%; background: #f0f0f0; transition: width 0.1s;"></div>
-    </div> <span id="audioLevelText">0%</span>
-</div>
+<!-- 音量表示機能は削除されました（音声認識デバイスとの不一致によるユーザー混乱防止のため） -->
 
 
 
@@ -3235,23 +3230,27 @@ window.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <!-- # 音声レベル監視機能　############################ -->
+<!-- 音量表示機能は削除されました（音声認識デバイスとの不一致によるユーザー混乱防止のため） -->
 <script>
-    // 音声レベル監視用の変数
-    let audioContext = null;
-    let analyser = null;
-    let microphone = null;
-    let dataArray = null;
+    // 音声レベル監視用の変数（無効化）
+    // let audioContext = null;
+    // let analyser = null;
+    // let microphone = null;
+    // let dataArray = null;
     
     // Web Speech APIはデバイス選択をサポートしないため、この機能は無効化
     function refreshAudioDevices() {
         console.log('Web Speech APIの制限により、音声デバイス選択は使用できません');
         console.log('既定の音声入力デバイスのみ使用されます');
-        // 音声レベル監視のみ開始（デバイス選択なし）
-        startAudioLevelMonitoring();
+        // 音声レベル監視は削除されました（音声認識デバイスとの不一致によるユーザー混乱防止のため）
+        // startAudioLevelMonitoring();
     }
     
     // 音声レベル監視を開始（既定デバイスのみ使用）
     async function startAudioLevelMonitoring() {
+        // 音声レベル監視は削除されました（音声認識デバイスとの不一致によるユーザー混乱防止のため）
+        console.log('音声レベル監視機能は無効化されています');
+        /*
         try {
             // Web Speech APIの制限により、常に既定デバイスを使用
             // autoGainControlをfalseに設定して自動ゲイン調整を無効化
@@ -3280,10 +3279,14 @@ window.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('音声レベル監視の開始に失敗:', error);
         }
+        */
     }
     
     // 音声レベル監視を停止
     function stopAudioLevelMonitoring() {
+        // 音声レベル監視は削除されました（音声認識デバイスとの不一致によるユーザー混乱防止のため）
+        console.log('音声レベル監視停止機能は無効化されています');
+        /*
         if (microphone) {
             microphone.disconnect();
             microphone = null;
@@ -3294,10 +3297,14 @@ window.addEventListener('DOMContentLoaded', function() {
         }
         document.getElementById('audioLevelCover').style.width = '100%';
         document.getElementById('audioLevelText').textContent = '0%';
+        */
     }
     
-    // 音声レベルを更新
+    // 音声レベルを更新（無効化）
     function updateAudioLevel() {
+        // 音声レベル監視は削除されました（音声認識デバイスとの不一致によるユーザー混乱防止のため）
+        return;
+        /*
         if (!analyser || !dataArray) return;
         
         analyser.getByteFrequencyData(dataArray);
@@ -3315,6 +3322,7 @@ window.addEventListener('DOMContentLoaded', function() {
         
         // 常に更新を続ける
         requestAnimationFrame(updateAudioLevel);
+        */
     }
     
     // Web Speech APIの制限により、デバイス選択機能は無効化
@@ -3322,8 +3330,8 @@ window.addEventListener('DOMContentLoaded', function() {
         // Font Access API対応状況をチェックして表示（無効化）
         // checkFontAPIStatus();
         
-        // 音声レベル監視のみ開始（デバイス選択なし）
-        refreshAudioDevices();
+        // 音声レベル監視は削除されました（音声認識デバイスとの不一致によるユーザー混乱防止のため）
+        // refreshAudioDevices();
         
         // システムフォント選択メニューを初期化
         setTimeout(initializeFontSelectors, 100);
