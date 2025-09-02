@@ -549,14 +549,24 @@
         // その他設定 ----------------------------
         var isSpeechRecognitionComplete = false;
         
-        // Chrome Translation APIの初期化チェック (Chrome 138+)
-        var useChromeTranslation = false;
+        // 翻訳方法の設定（親ウィンドウから制御）
+        var selectedTranslationMethod = getParam('translation_method') || 'chrome'; // URLパラメータから取得、デフォルトはChrome内蔵
         var chromeTranslationReady = false;
+        
+        console.log('初期翻訳方法:', selectedTranslationMethod);
         
         // 音声認識の定期的な再起動機能（メモリリーク対策）
         var recognitionStartTime = Date.now();
         var RECOGNITION_RESTART_INTERVAL = 60 * 60 * 1000; // 1時間ごとに再起動
         var recognitionRestartTimer = null;
+        
+        // 親ウィンドウからの翻訳方法切り替えメッセージを受信
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'updateTranslationMethod') {
+                selectedTranslationMethod = event.data.method;
+                console.log('翻訳方法を切り替え:', selectedTranslationMethod);
+            }
+        });
         
         // グローバルエラーハンドリング（メモリ不足やクラッシュを防ぐ）
         window.addEventListener('error', function(event) {
@@ -620,25 +630,8 @@
                 if (available) {
                     chromeTranslationReady = true;
                     console.log('Chrome Translation API (Chrome 138+) が利用可能です');
-                    
-                    // 翻訳言語の対応状況を確認
-                    if (arg_trans) {
-                        const sourceLang = window.chromeTranslator.normalizeLanguageCode(trans_sourcelang);
-                        const targetLang = window.chromeTranslator.normalizeLanguageCode(arg_trans);
-                        
-                        // 音声認識言語と翻訳言語が同じ場合もChrome翻訳を使用する
-                        if (sourceLang === targetLang) {
-                            console.log(`翻訳1: ${trans_sourcelang} → ${arg_trans} (同一言語のためスキップ予定)`);
-                            useChromeTranslation = true;
-                        } else {
-                            window.chromeTranslator.canTranslate(sourceLang, targetLang).then(canTranslate => {
-                                console.log(`翻訳1: ${trans_sourcelang} → ${arg_trans} (対応: ${canTranslate})`);
-                                if (canTranslate) {
-                                    useChromeTranslation = true;
-                                }
-                            });
-                        }
-                    }
+                } else {
+                    console.log('Chrome Translation API は利用できません');
                 }
             });
         }
@@ -1100,8 +1093,8 @@
                     // 翻訳処理フラグ（重複実行を防ぐ）
                     let translationProcessed = false;
                     
-                    // Chrome Translation APIを優先使用
-                    if (useChromeTranslation && chromeTranslationReady) {
+                    // 選択された翻訳方法に基づいて翻訳処理を実行
+                    if (selectedTranslationMethod === 'chrome' && chromeTranslationReady) {
                         // 少なくとも1つの翻訳言語が設定されているか確認
                         if (arg_trans != null || arg_trans2 != null || arg_trans3 != null) {
                             translationProcessed = true; // Chrome翻訳を実行したことを記録
@@ -1220,9 +1213,9 @@
                                 }
                             }
                         }  // Chrome翻訳の翻訳言語設定チェックの終了
-                    }  // Chrome翻訳APIの使用条件チェックの終了
-                    // Chrome Translation APIが使用できない場合、かつまだ翻訳処理をしていない場合はGAS APIを使用
-                    else if(gas_key != null && !translationProcessed){
+                    }  // Chrome翻訳処理の終了
+                    // GAS API翻訳が選択されている場合、またはChrome翻訳でエラーが発生した場合
+                    else if((selectedTranslationMethod === 'gas' || !translationProcessed) && gas_key != null){
                         
                         // 翻訳開始ステータス（GAS）
                         var activeTranslations = [];
@@ -1634,7 +1627,7 @@
 
 // バージョン情報の表示 ---------------------------------
 const SoftwareTitle = "音声認識字幕ちゃん";
-const SoftwareVersion = "2025.9.1 11:10";
+const SoftwareVersion = "2025.9.2 19:10";
 const SoftwareDeveloper = "[開発者：さぁたん ＆ さよなりω/(大学教員)西村良太]"
 
 // Web Speech API使用時のデバイス制限について

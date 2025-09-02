@@ -29,7 +29,7 @@
     </script>
     <!-- END: Google tag (gtag.js) -->
 
-    <title>jimakuChan: 音声認識字幕ちゃん v2025.9.1 11:10 [CONFIG]</title>
+    <title>jimakuChan: 音声認識字幕ちゃん v2025.9.2 18:51 [CONFIG]</title>
 
     <style type="text/css">
         /* グローバルなbox-sizingリセット */
@@ -123,24 +123,22 @@
 <!-- # プリセット機能とAPIキー ################## -->
 <div style="display: flex; gap: 10px; margin-bottom: 5px;">
     <!-- 左側：設定プリセット -->
-    <div style="width: 350px; background-color: #ffe0e6; padding: 8px 10px; border-radius: 5px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 14px; white-space: nowrap;">設定プリセット：</span>
-            <select id="presetSelect" onchange="loadPreset()" style="flex: 1;">
-                <option value="default">📋 選択してください</option>
-                <option value="gaming">🎮 ゲーム配信用</option>
-                <option value="meeting">💼 会議・打ち合わせ用</option>
-                <option value="language_learning">📚 語学学習用</option>
-                <option value="accessibility">♿ アクセシビリティ重視</option>
-                <option value="cute_streaming">🌸 かわいい配信用</option>
-                <option value="dark_theme">🌙 ダークテーマ</option>
-                <option value="rainbow">🌈 レインボー</option>
-                <option value="custom1">🔧 カスタム１</option>
-                <option value="custom2">🔧 カスタム２</option>
-                <option value="custom3">🔧 カスタム３</option>
-            </select>
-        </div>
-        <small style="color: #666; font-size: 11px;">※ 選択すると設定が自動保存されます ✨</small>
+    <div style="width: 280px; background-color: #ffe0e6; padding: 8px 10px; border-radius: 5px;">
+        <div style="font-size: 14px; margin-bottom: 4px;">設定プリセット：</div>
+        <select id="presetSelect" onchange="loadPreset()" style="width: 100%; margin-bottom: 4px;">
+            <option value="default">📋 選択してください</option>
+            <option value="gaming">🎮 ゲーム配信用</option>
+            <option value="meeting">💼 会議・打ち合わせ用</option>
+            <option value="language_learning">📚 語学学習用</option>
+            <option value="accessibility">♿ アクセシビリティ重視</option>
+            <option value="cute_streaming">🌸 かわいい配信用</option>
+            <option value="dark_theme">🌙 ダークテーマ</option>
+            <option value="rainbow">🌈 レインボー</option>
+            <option value="custom1">🔧 カスタム１</option>
+            <option value="custom2">🔧 カスタム２</option>
+            <option value="custom3">🔧 カスタム３</option>
+        </select>
+        <small style="color: #666; font-size: 12px;">※ 選択すると設定が自動保存されます ✨</small>
     </div>
     
     <!-- 右側：APIキー関連 -->
@@ -158,9 +156,33 @@
         </div>
         <div id="chromeTranslationMode" style="display: none; margin-top: 5px; padding: 10px; background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); border-radius: 5px;">
             <div style="margin-bottom: 8px;">
-                <span style="font-size: 14px; font-weight: bold; color: #1a5e3a;">
-                    🚀 高速翻訳対応Chromeで起動！
-                </span>
+                <div style="margin-bottom: 8px;">
+                    <span style="font-size: 14px; font-weight: bold; color: #1a5e3a;">
+                        🚀 高速翻訳対応Chromeで起動！
+                    </span>
+                </div>
+                
+                <!-- 翻訳方法選択スイッチ -->
+                <div style="margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+                        <span style="font-size: 14px; color: #1a5e3a; font-weight: bold;">翻訳方法：</span>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 14px; color: #1a5e3a;">
+                            <input type="radio" name="translationMethod" value="chrome" id="translationMethodChrome" 
+                                   onchange="switchTranslationMethod()" checked>
+                            Chrome内蔵(高速)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 14px; color: #1a5e3a;">
+                            <input type="radio" name="translationMethod" value="gas" id="translationMethodGas" 
+                                   onchange="switchTranslationMethod()">
+                            GAS API
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Chrome内蔵翻訳選択時の注意書き -->
+                <div id="chromeTranslationNotice" style="font-size: 12px; color: #666; line-height: 1.3;">
+                    ※Chrome内蔵翻訳の場合は、1時間程度でエラーで止まるのでリロードしてください（現在誠意対応中🙇！）
+                </div>
             </div>
             <div id="modelDownloadArea" style="display: none; margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #fff3cd 0%, #ffe8a1 100%); border-radius: 5px; border: 2px solid #ffc107;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -706,6 +728,12 @@ function checkChromeTranslationAPI() {
 // ページ読み込み時にチェック
 window.addEventListener('DOMContentLoaded', function() {
     checkChromeTranslationAPI();
+    
+    // 翻訳方法をlocalStorageから復元
+    setTimeout(() => {
+        applyTranslationMethodOnLoad();
+    }, 100);
+    
     // 少し遅延させてから全翻訳モデルをチェック（iframeの準備を待つ）
     setTimeout(() => {
         checkAllTranslationModels();
@@ -745,7 +773,8 @@ window.addEventListener('DOMContentLoaded', function() {
         , "speech_text_font_selector", "trans_text_font_selector", "trans_text2_font_selector", "trans_text3_font_selector"
         , "speech_text_system_font", "trans_text_system_font", "trans_text2_system_font", "trans_text3_system_font"
         , "speech_text_direct_font", "trans_text_direct_font", "trans_text2_direct_font", "trans_text3_direct_font"
-        , "line_spacing_1", "line_spacing_2", "line_spacing_3"];
+        , "line_spacing_1", "line_spacing_2", "line_spacing_3"
+        , "translation_method"];
 
     // 新版：全設定はjimakuChan_presetsで管理（jimakuChan_configは廃止）
     // configオブジェクトはプリセット保存時の一時的なデータ収集用のみ
@@ -900,6 +929,111 @@ window.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // 翻訳方法の切り替え処理
+    function switchTranslationMethod() {
+        const chromeRadio = document.getElementById('translationMethodChrome');
+        const gasRadio = document.getElementById('translationMethodGas');
+        const notice = document.getElementById('chromeTranslationNotice');
+        const modelArea = document.getElementById('modelDownloadArea');
+        
+        if (chromeRadio.checked) {
+            // Chrome内蔵翻訳選択時
+            notice.style.display = 'block';
+            // モデルダウンロードエリアの表示状態を確認するためチェック実行
+            checkAllTranslationModels();
+        } else {
+            // GAS API選択時
+            notice.style.display = 'none';
+            if (modelArea) {
+                modelArea.style.display = 'none';
+            }
+        }
+        
+        // localStorage に保存
+        const selectedMethod = chromeRadio.checked ? 'chrome' : 'gas';
+        saveTranslationMethodToStorage(selectedMethod);
+        
+        // iframe内の設定を更新
+        updateTranslationMethodInIframe();
+        
+        // プリセットに自動保存
+        updateOptionValues();
+    }
+    
+    // iframe内の翻訳方法設定を更新
+    function updateTranslationMethodInIframe() {
+        const iframe = document.getElementById('asr_frame');
+        if (!iframe || !iframe.contentWindow) return;
+        
+        try {
+            const selectedMethod = document.querySelector('input[name="translationMethod"]:checked').value;
+            iframe.contentWindow.postMessage({
+                type: 'updateTranslationMethod',
+                method: selectedMethod
+            }, '*');
+            console.log(`翻訳方法を${selectedMethod}に更新しました`);
+        } catch (error) {
+            console.error('iframe内の翻訳方法更新エラー:', error);
+        }
+    }
+    
+    // localStorage保存・読み込み機能
+    function saveTranslationMethodToStorage(method) {
+        try {
+            localStorage.setItem('jimakuChan_translationMethod', method);
+            console.log('翻訳方法をlocalStorageに保存:', method);
+        } catch (error) {
+            console.warn('翻訳方法のlocalStorage保存に失敗:', error);
+        }
+    }
+    
+    function loadTranslationMethodFromStorage() {
+        try {
+            const saved = localStorage.getItem('jimakuChan_translationMethod');
+            return saved || 'chrome'; // デフォルトはChrome内蔵
+        } catch (error) {
+            console.warn('翻訳方法のlocalStorage読み込みに失敗:', error);
+            return 'chrome';
+        }
+    }
+    
+    // 初期化時に翻訳方法の値を取得する関数
+    function getTranslationMethod() {
+        const chromeRadio = document.getElementById('translationMethodChrome');
+        if (!chromeRadio) {
+            // ラジオボタンがまだ存在しない場合はlocalStorageから取得
+            return loadTranslationMethodFromStorage();
+        }
+        return chromeRadio.checked ? 'chrome' : 'gas';
+    }
+    
+    // ページ読み込み時に翻訳方法を復元する関数
+    function applyTranslationMethodOnLoad() {
+        const savedMethod = loadTranslationMethodFromStorage();
+        
+        const chromeRadio = document.getElementById('translationMethodChrome');
+        const gasRadio = document.getElementById('translationMethodGas');
+        const notice = document.getElementById('chromeTranslationNotice');
+        
+        if (chromeRadio && gasRadio && notice) {
+            // ラジオボタンの状態を設定
+            if (savedMethod === 'chrome') {
+                chromeRadio.checked = true;
+                gasRadio.checked = false;
+                notice.style.display = 'block';
+            } else {
+                chromeRadio.checked = false;
+                gasRadio.checked = true;
+                notice.style.display = 'none';
+            }
+            
+            // iframe内にも通知
+            updateTranslationMethodInIframe();
+            
+            console.log('翻訳方法をlocalStorageから復元:', savedMethod);
+        }
+    }
+    
     // iframe内の翻訳言語を動的に更新
     function updateTranslationLanguageInIframe(transNum, newLang) {
         const iframe = document.getElementById('asr_frame');
@@ -924,10 +1058,18 @@ window.addEventListener('DOMContentLoaded', function() {
     // URLに付けるオプションの値をアップデート //////////
     function updateOptionValues(only_url=false, transNum=null) {
         for (const p of config_values) {
-            eval("var " + p + " = document.getElementById('" + p + "').value;");
+            // translation_methodは特別処理なのでスキップ
+            if (p === 'translation_method') {
+                continue;
+            }
+            const element = document.getElementById(p);
+            if (element) {
+                eval("var " + p + " = element.value;");
+            }
         }
         var bouyomi = document.getElementById('bouyomi').checked;
         var anti_sexual = document.getElementById('anti_sexual').checked;
+        var translation_method = getTranslationMethod();
         
         // フォント変数の初期化
         var speech_text_font = '';
@@ -1034,6 +1176,7 @@ window.addEventListener('DOMContentLoaded', function() {
             new_url = new_url + "&anti_sexual=" + "true";
         }
         if(gas_key != '') {new_url = new_url + "&gas_key=" + gas_key;}
+        if(translation_method != '') {new_url = new_url + "&translation_method=" + translation_method;}
    
         // config の更新
         for (const p of config_values) {
@@ -1043,6 +1186,7 @@ window.addEventListener('DOMContentLoaded', function() {
         // checkbox設定もconfigに追加（プリセット保存用のみ）
         config.bouyomi = bouyomi;
         config.anti_sexual = anti_sexual;
+        config.translation_method = translation_method;
 
         // 注意：jimakuChan_configへの保存は廃止。全てプリセットで管理
 
@@ -2349,6 +2493,39 @@ window.addEventListener('DOMContentLoaded', function() {
                 }
             }
             
+            // 翻訳方法の復元
+            const chromeRadio = document.getElementById('translationMethodChrome');
+            const gasRadio = document.getElementById('translationMethodGas');
+            const notice = document.getElementById('chromeTranslationNotice');
+            
+            if (chromeRadio && gasRadio && notice) {
+                let methodToApply = 'chrome'; // デフォルト
+                
+                if (settingsToApply.translation_method) {
+                    // 保存済み設定に翻訳方法がある場合
+                    methodToApply = settingsToApply.translation_method;
+                    console.log('翻訳方法を保存済み設定から復元:', methodToApply);
+                } else {
+                    // 設定がない場合はlocalStorageから取得
+                    methodToApply = loadTranslationMethodFromStorage();
+                    console.log('翻訳方法をlocalStorageから復元:', methodToApply);
+                }
+                
+                // ラジオボタンと注意書きを設定
+                if (methodToApply === 'chrome') {
+                    chromeRadio.checked = true;
+                    gasRadio.checked = false;
+                    notice.style.display = 'block';
+                } else {
+                    chromeRadio.checked = false;
+                    gasRadio.checked = true;
+                    notice.style.display = 'none';
+                }
+                
+                // 設定をlocalStorageにも保存（同期のため）
+                saveTranslationMethodToStorage(methodToApply);
+            }
+            
             // 設定を反映
             updateOptionValues(false);
             setTimeout(() => {
@@ -2407,6 +2584,39 @@ window.addEventListener('DOMContentLoaded', function() {
                         element.value = presetData[key];
                     }
                 }
+            }
+            
+            // 翻訳方法の復元
+            const chromeRadio = document.getElementById('translationMethodChrome');
+            const gasRadio = document.getElementById('translationMethodGas');
+            const notice = document.getElementById('chromeTranslationNotice');
+            
+            if (chromeRadio && gasRadio && notice) {
+                let methodToApply = 'chrome'; // デフォルト
+                
+                if (presetData.translation_method) {
+                    // プリセットに翻訳方法の設定がある場合はそれを優先
+                    methodToApply = presetData.translation_method;
+                    console.log('翻訳方法をプリセットから復元:', methodToApply);
+                } else {
+                    // プリセットに設定がない場合はlocalStorageから取得
+                    methodToApply = loadTranslationMethodFromStorage();
+                    console.log('翻訳方法をlocalStorageから復元:', methodToApply);
+                }
+                
+                // ラジオボタンと注意書きを設定
+                if (methodToApply === 'chrome') {
+                    chromeRadio.checked = true;
+                    gasRadio.checked = false;
+                    notice.style.display = 'block';
+                } else {
+                    chromeRadio.checked = false;
+                    gasRadio.checked = true;
+                    notice.style.display = 'none';
+                }
+                
+                // 設定をlocalStorageにも保存（同期のため）
+                saveTranslationMethodToStorage(methodToApply);
             }
             
             // フォント設定の特別処理
@@ -2536,6 +2746,10 @@ window.addEventListener('DOMContentLoaded', function() {
         // 現在の設定を取得
         const currentSettings = {};
         for (const p of config_values) {
+            // translation_methodは特別処理なのでスキップ
+            if (p === 'translation_method') {
+                continue;
+            }
             const element = document.getElementById(p);
             if (element) {
                 if (element.type === 'checkbox') {
@@ -2549,6 +2763,7 @@ window.addEventListener('DOMContentLoaded', function() {
         // チェックボックス設定も含める
         currentSettings.bouyomi = document.getElementById('bouyomi').checked;
         currentSettings.anti_sexual = document.getElementById('anti_sexual').checked;
+        currentSettings.translation_method = getTranslationMethod();
         
         // プリセットを保存
         const savedPresets = JSON.parse(localStorage.jimakuChan_presets || '{}');
@@ -3177,6 +3392,12 @@ window.addEventListener('DOMContentLoaded', function() {
                 iframeDoc.addEventListener('click', function() {
                     toggleIframeHeight();
                 });
+                
+                // iframe読み込み完了後に翻訳方法を確実に送信
+                setTimeout(() => {
+                    updateTranslationMethodInIframe();
+                    console.log('iframe読み込み完了後に翻訳方法を送信');
+                }, 500);
             } catch (e) {
                 console.error('iframeへのアクセスに失敗:', e);
             }
