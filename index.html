@@ -1364,19 +1364,19 @@ window.addEventListener('DOMContentLoaded', function() {
         console.log('フォントステータス:', message);
     }
     
-    // Font Access API対応状況をチェックして表示する関数
+    // Font Access API対応状況をチェックして表示する関数（表示を無効化）
     function checkFontAPIStatus() {
         if ('queryLocalFonts' in window) {
-            updateFontStatus('Font Access API対応（実験的機能）', '#008000');
+            // updateFontStatus('Font Access API対応（実験的機能）', '#008000');
             
             // 実際に使えるかテスト
             window.queryLocalFonts().then(fonts => {
-                updateFontStatus(`Font Access API対応（${fonts.length}個のフォント検出）`, '#008000');
+                // updateFontStatus(`Font Access API対応（${fonts.length}個のフォント検出）`, '#008000');
             }).catch(error => {
-                updateFontStatus('Font Access API（権限エラー）', '#ff6600');
+                // updateFontStatus('Font Access API（権限エラー）', '#ff6600');
             });
         } else {
-            updateFontStatus('限定リスト使用中（Font Access API非対応）', '#666');
+            // updateFontStatus('限定リスト使用中（Font Access API非対応）', '#666');
         }
     }
     
@@ -1446,17 +1446,17 @@ window.addEventListener('DOMContentLoaded', function() {
                     const appliedFont = computedStyle.fontFamily;
                     
                     if (appliedFont.includes(fontName)) {
-                        updateFontStatus(`✅ 直接指定: ${fontName}`, '#008000');
+                        // updateFontStatus(`✅ 直接指定: ${fontName}`, '#008000');
                     } else {
-                        updateFontStatus(`⚠️ 直接指定: ${fontName} (部分的に適用)`, '#ff6600');
+                        // updateFontStatus(`⚠️ 直接指定: ${fontName} (部分的に適用)`, '#ff6600');
                     }
                 } else {
-                    updateFontStatus(`❌ フォントなしエラー 直接指定: ${fontName}`, '#cc0000');
+                    // updateFontStatus(`❌ フォントなしエラー 直接指定: ${fontName}`, '#cc0000');
                 }
             }
         } catch (error) {
             console.log('直接指定フォント適用エラー:', error);
-            updateFontStatus(`❌ エラー: ${error.message}`, '#cc0000');
+            // updateFontStatus(`❌ エラー: ${error.message}`, '#cc0000');
         }
     }
     
@@ -1518,9 +1518,9 @@ window.addEventListener('DOMContentLoaded', function() {
                         const appliedFont = computedStyle.fontFamily;
                         
                         if (appliedFont.includes(fontName)) {
-                            updateFontStatus(`✅ PC内フォント: ${fontName}`, '#008000');
+                            // updateFontStatus(`✅ PC内フォント: ${fontName}`, '#008000');
                         } else {
-                            updateFontStatus(`⚠️ PC内フォント: ${fontName} (未検出)`, '#ff6600');
+                            // updateFontStatus(`⚠️ PC内フォント: ${fontName} (未検出)`, '#ff6600');
                         }
                     }
                 } catch (error) {
@@ -1626,7 +1626,7 @@ window.addEventListener('DOMContentLoaded', function() {
                 if (imbElement) imbElement.style.fontFamily = fontFamily;
                 
                 console.log(`フォント適用: ${fontValue} → ${targetElement}`);
-                updateFontStatus(`✅ フォント: ${fontValue}`, '#008000');
+                // updateFontStatus(`✅ フォント: ${fontValue}`, '#008000');
             }
         } catch (error) {
             console.log('フォント適用エラー:', error);
@@ -3319,8 +3319,8 @@ window.addEventListener('DOMContentLoaded', function() {
     
     // Web Speech APIの制限により、デバイス選択機能は無効化
     document.addEventListener('DOMContentLoaded', function() {
-        // Font Access API対応状況をチェックして表示
-        checkFontAPIStatus();
+        // Font Access API対応状況をチェックして表示（無効化）
+        // checkFontAPIStatus();
         
         // 音声レベル監視のみ開始（デバイス選択なし）
         refreshAudioDevices();
