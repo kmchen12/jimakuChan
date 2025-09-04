@@ -597,18 +597,129 @@
         
         console.log('初期翻訳方法:', selectedTranslationMethod);
         
-        // 音声認識の定期的な再起動機能（メモリリーク対策）
-        var recognitionStartTime = Date.now();
-        var RECOGNITION_RESTART_INTERVAL = 60 * 60 * 1000; // 1時間ごとに再起動
-        var recognitionRestartTimer = null;
+        // 初期化時にChrome翻訳が選択されている場合、タイマーを開始
+        if (selectedTranslationMethod === 'chrome') {
+            // 少し遅延させてからタイマー開始（DOM準備完了後）
+            setTimeout(() => {
+                startChromeTranslationReloadTimer();
+            }, 1000);
+        }
+        
+        
+        // Chrome内蔵翻訳使用時の30分自動リロード機能（STATUS_BREAKPOINT対策）
+        var chromeTranslationStartTime = null;
+        var CHROME_TRANSLATION_RELOAD_INTERVAL = 30 * 60 * 1000; // 30分ごとにリロード
+        var chromeTranslationReloadTimer = null;
+        var chromeTranslationCountdownInterval = null;
+        var chromeTranslationPauseTime = null; // タブ非アクティブ時の一時停止時刻
+        
+        // ページ可視性変更の監視（タブ切り替え時の適切な処理）
+        document.addEventListener('visibilitychange', function() {
+            if (selectedTranslationMethod === 'chrome' && chromeTranslationStartTime) {
+                if (document.hidden) {
+                    // タブが非表示になった時：一時停止時刻を記録
+                    chromeTranslationPauseTime = Date.now();
+                } else {
+                    // タブが表示された時：一時停止時間を開始時刻に加算して調整
+                    if (chromeTranslationPauseTime) {
+                        const pauseDuration = Date.now() - chromeTranslationPauseTime;
+                        chromeTranslationStartTime += pauseDuration;
+                        chromeTranslationPauseTime = null;
+                        updateChromeTranslationCountdown(); // 即座にカウントダウンを更新
+                    }
+                }
+            }
+        });
         
         // 親ウィンドウからの翻訳方法切り替えメッセージを受信
         window.addEventListener('message', function(event) {
             if (event.data && event.data.type === 'updateTranslationMethod') {
                 selectedTranslationMethod = event.data.method;
                 console.log('翻訳方法を切り替え:', selectedTranslationMethod);
+                
+                // Chrome内蔵翻訳に切り替わった場合、自動リロードタイマーを開始
+                // （Chrome Translation API未対応でもタイマーは動作させる）
+                if (selectedTranslationMethod === 'chrome') {
+                    startChromeTranslationReloadTimer();
+                } else {
+                    stopChromeTranslationReloadTimer();
+                }
+            } else if (event.data && event.data.type === 'forceStartTimer') {
+                selectedTranslationMethod = 'chrome';
+                startChromeTranslationReloadTimer();
             }
         });
+        
+        // Chrome内蔵翻訳の30分自動リロード機能
+        function startChromeTranslationReloadTimer() {
+            if (chromeTranslationReloadTimer) {
+                clearTimeout(chromeTranslationReloadTimer);
+            }
+            if (chromeTranslationCountdownInterval) {
+                clearInterval(chromeTranslationCountdownInterval);
+            }
+            
+            chromeTranslationStartTime = Date.now();
+            
+            chromeTranslationReloadTimer = setTimeout(() => {
+                window.location.reload();
+            }, CHROME_TRANSLATION_RELOAD_INTERVAL);
+            
+            chromeTranslationCountdownInterval = setInterval(() => {
+                updateChromeTranslationCountdown();
+            }, 1000);
+            
+            updateChromeTranslationCountdown();
+        }
+        
+        function stopChromeTranslationReloadTimer() {
+            if (chromeTranslationReloadTimer) {
+                clearTimeout(chromeTranslationReloadTimer);
+                chromeTranslationReloadTimer = null;
+            }
+            if (chromeTranslationCountdownInterval) {
+                clearInterval(chromeTranslationCountdownInterval);
+                chromeTranslationCountdownInterval = null;
+            }
+            if (chromeTranslationStartTime) {
+                chromeTranslationStartTime = null;
+            }
+            
+            updateChromeTranslationCountdown(true);
+        }
+        
+        // カウントダウン情報を親ウィンドウに送信
+        function updateChromeTranslationCountdown(reset = false) {
+            try {
+                if (reset || !chromeTranslationStartTime) {
+                    window.parent.postMessage({
+                        type: 'chromeTranslationCountdown',
+                        totalSeconds: 0,
+                        remainingMinutes: 0,
+                        remainingSeconds: 0
+                    }, '*');
+                    return;
+                }
+                
+                const now = Date.now();
+                const elapsed = now - chromeTranslationStartTime;
+                const totalRemainingMs = Math.max(0, CHROME_TRANSLATION_RELOAD_INTERVAL - elapsed);
+                const totalRemainingSeconds = Math.max(1, Math.round(totalRemainingMs / 1000));
+                
+                const remainingMinutes = Math.floor(totalRemainingSeconds / 60);
+                const remainingSeconds = totalRemainingSeconds % 60;
+                
+                window.parent.postMessage({
+                    type: 'chromeTranslationCountdown',
+                    totalSeconds: totalRemainingSeconds,
+                    remainingMinutes: remainingMinutes,
+                    remainingSeconds: remainingSeconds
+                }, '*');
+                
+            } catch (error) {
+                setTimeout(() => updateChromeTranslationCountdown(reset), 1000);
+            }
+        }
         
         // グローバルエラーハンドリング（メモリ不足やクラッシュを防ぐ）
         window.addEventListener('error', function(event) {
@@ -671,10 +782,19 @@
             window.chromeTranslator.checkAvailability().then(available => {
                 if (available) {
                     chromeTranslationReady = true;
-                    console.log('Chrome Translation API (Chrome 138+) が利用可能です');
+                    
+                    // Chrome内蔵翻訳が選択されている場合、自動リロードタイマーを開始
+                    if (selectedTranslationMethod === 'chrome') {
+                        startChromeTranslationReloadTimer();
+                    }
                 } else {
-                    console.log('Chrome Translation API は利用できません');
+                    // APIが利用できない場合でもChrome翻訳が選択されていれば警告表示
+                    if (selectedTranslationMethod === 'chrome') {
+                    }
                 }
+            }).catch(error => {
+                console.error('Chrome Translation API初期化エラー:', error);
+                chromeTranslationReady = false;
             });
         }
         
@@ -1159,7 +1279,6 @@
                                 
                                 // 音声認識言語と翻訳言語が同じ場合はスキップ
                                 if (sourceLang === targetLang) {
-                                    console.log('Chrome翻訳: 音声認識言語と翻訳言語1が同じため、翻訳をスキップします');
                                     // 元のテキストをそのまま表示
                                     const filteredText = applyTranslationFilter(recog_text, 1);
                                     document.getElementById('trans_text-imb').innerHTML = filteredText;
@@ -1195,7 +1314,6 @@
                                 
                                 // 音声認識言語と翻訳言語が同じ場合はスキップ
                                 if (sourceLang === targetLang2) {
-                                    console.log('Chrome翻訳: 音声認識言語と翻訳言語2が同じため、翻訳をスキップします');
                                     const filteredText2 = applyTranslationFilter(recog_text, 2);
                                     document.getElementById('trans_text2-imb').innerHTML = filteredText2;
                                     document.getElementById('trans_text2-bg').innerHTML = filteredText2;
@@ -1228,7 +1346,6 @@
                                 
                                 // 音声認識言語と翻訳言語が同じ場合はスキップ
                                 if (sourceLang === targetLang3) {
-                                    console.log('Chrome翻訳: 音声認識言語と翻訳言語3が同じため、翻訳をスキップします');
                                     const filteredText3 = applyTranslationFilter(recog_text, 3);
                                     document.getElementById('trans_text3-imb').innerHTML = filteredText3;
                                     document.getElementById('trans_text3-bg').innerHTML = filteredText3;
@@ -1546,37 +1663,12 @@
             // 単一ループに統合
         }
 
-        // 音声認識の定期再起動機能
-        function startRecognitionRestartTimer() {
-            // 既存のタイマーをクリア
-            if (recognitionRestartTimer) {
-                clearTimeout(recognitionRestartTimer);
-            }
-            
-            recognitionRestartTimer = setTimeout(() => {
-                console.log('1時間経過。音声認識を予防的に再起動します。');
-                
-                // 安全な再起動機能を使用
-                safeRestartRecognition('定期再起動');
-                
-                // 再起動時間を更新
-                recognitionStartTime = Date.now();
-                
-                // 次の再起動タイマーを設定
-                startRecognitionRestartTimer();
-                
-            }, RECOGNITION_RESTART_INTERVAL);
-        }
 
         // 音声デバイス初期化後に音声認識を開始
         initializeAudioDevice().then(() => {
             recognitionState = 'starting';
             recognition.start();
             console.log("recog start: cnt:" + String(my_count));
-            recognitionStartTime = Date.now();
-            
-            // 定期再起動タイマーを開始
-            startRecognitionRestartTimer();
             
             // 初期ステータス設定
             if (gas_key != null && gas_key !== '') {
@@ -1589,10 +1681,6 @@
             recognitionState = 'starting';
             recognition.start();
             console.log("recog start (default device): cnt:" + String(my_count));
-            recognitionStartTime = Date.now();
-            
-            // 定期再起動タイマーを開始
-            startRecognitionRestartTimer();
             
             // 初期ステータス設定
             if (gas_key != null && gas_key !== '') {
@@ -1659,7 +1747,7 @@
 
 // バージョン情報の表示 ---------------------------------
 const SoftwareTitle = "音声認識字幕ちゃん";
-const SoftwareVersion = "2025.9.2 20:11";
+const SoftwareVersion = "2025.9.4 21:12";
 const SoftwareDeveloper = "[開発者：さぁたん ＆ さよなりω/(大学教員)西村良太]"
 
 // Web Speech API使用時のデバイス制限について

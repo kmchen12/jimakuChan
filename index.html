@@ -157,7 +157,7 @@
         <div id="chromeTranslationMode" style="display: none; margin-top: 5px; padding: 10px; background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%); border-radius: 5px;">
             <div style="margin-bottom: 8px;">
                 <div style="margin-bottom: 8px;">
-                    <span style="font-size: 14px; font-weight: bold; color: #1a5e3a;">
+                    <span id="chromeTranslationStatus" style="font-size: 14px; font-weight: bold; color: #1a5e3a;">
                         🚀 高速翻訳対応Chromeで起動！
                     </span>
                 </div>
@@ -181,7 +181,8 @@
                 
                 <!-- Chrome内蔵翻訳選択時の注意書き -->
                 <div id="chromeTranslationNotice" style="font-size: 12px; color: #666; line-height: 1.3;">
-                    ※Chrome内蔵翻訳の場合は、1時間程度でエラーで止まるのでリロードしてください（現在誠意対応中🙇！）
+                    <span id="chromeTranslationNoticeText">※Chrome内蔵(高速)は，1時間程でエラーで止まります（原因調査中）．<br>現在は，仮対応として30分ごとに自動リロードされます</span>
+                    <span id="chromeTranslationTimer" style="font-weight: bold; color: #1976d2;">（xx:xx後にリロード）</span>
                 </div>
             </div>
             <div id="modelDownloadArea" style="display: none; margin-top: 8px; padding: 10px; background: linear-gradient(135deg, #fff3cd 0%, #ffe8a1 100%); border-radius: 5px; border: 2px solid #ffc107;">
@@ -936,41 +937,68 @@ window.addEventListener('DOMContentLoaded', function() {
             notice.style.display = 'block';
             // モデルダウンロードエリアの表示状態を確認するためチェック実行
             checkAllTranslationModels();
+            
+            // iframe内に翻訳方法変更を通知（タイマー開始のため）
+            updateTranslationMethodInIframe('chrome');
         } else {
             // GAS API選択時
             notice.style.display = 'none';
             if (modelArea) {
                 modelArea.style.display = 'none';
             }
+            
+            // iframe内に翻訳方法変更を通知（タイマー停止のため）
+            updateTranslationMethodInIframe('gas');
         }
         
         // localStorage に保存
         const selectedMethod = chromeRadio.checked ? 'chrome' : 'gas';
         saveTranslationMethodToStorage(selectedMethod);
         
-        // iframe内の設定を更新
-        updateTranslationMethodInIframe();
-        
         // プリセットに自動保存
         updateOptionValues();
     }
     
     // iframe内の翻訳方法設定を更新
-    function updateTranslationMethodInIframe() {
+    function updateTranslationMethodInIframe(method = null) {
         const iframe = document.getElementById('asr_frame');
-        if (!iframe || !iframe.contentWindow) return;
+        if (!iframe || !iframe.contentWindow) {
+            console.warn('iframe未準備のため翻訳方法更新をスキップ');
+            return;
+        }
         
         try {
-            const selectedMethod = document.querySelector('input[name="translationMethod"]:checked').value;
+            const selectedMethod = method || document.querySelector('input[name="translationMethod"]:checked').value;
             iframe.contentWindow.postMessage({
                 type: 'updateTranslationMethod',
                 method: selectedMethod
             }, '*');
-            console.log(`翻訳方法を${selectedMethod}に更新しました`);
+            console.log(`翻訳方法を${selectedMethod}に更新しました（タイマー${selectedMethod === 'chrome' ? '開始' : '停止'}）`);
         } catch (error) {
             console.error('iframe内の翻訳方法更新エラー:', error);
         }
     }
+    
+    function setupMessageListener() {
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'chromeTranslationCountdown') {
+                const timerElement = document.getElementById('chromeTranslationTimer');
+                
+                if (timerElement) {
+                    const { remainingMinutes, remainingSeconds, totalSeconds } = event.data;
+                    
+                    if (totalSeconds > 0) {
+                        const minutes = String(remainingMinutes).padStart(2, '0');
+                        const seconds = String(remainingSeconds).padStart(2, '0');
+                        timerElement.textContent = `（${minutes}:${seconds}後にリロード）`;
+                    } else {
+                        timerElement.textContent = '（待機中）';
+                    }
+                }
+            }
+        }, false);
+    }
+    
     
     // localStorage保存・読み込み機能
     function saveTranslationMethodToStorage(method) {
@@ -3333,6 +3361,9 @@ window.addEventListener('DOMContentLoaded', function() {
         // 音声レベル監視は削除されました（音声認識デバイスとの不一致によるユーザー混乱防止のため）
         // refreshAudioDevices();
         
+        // メッセージリスナーを確実に登録
+        setupMessageListener();
+        
         // システムフォント選択メニューを初期化
         setTimeout(initializeFontSelectors, 100);
         
@@ -3405,6 +3436,15 @@ window.addEventListener('DOMContentLoaded', function() {
                 setTimeout(() => {
                     updateTranslationMethodInIframe();
                     console.log('iframe読み込み完了後に翻訳方法を送信');
+                    
+                    // Chrome翻訳が選択されている場合、タイマー開始を確認
+                    const chromeRadio = document.getElementById('translationMethodChrome');
+                    if (chromeRadio && chromeRadio.checked) {
+                        console.log('Chrome翻訳選択確認 - タイマー開始確認');
+                        setTimeout(() => {
+                            updateTranslationMethodInIframe('chrome');
+                        }, 1000);
+                    }
                 }, 500);
             } catch (e) {
                 console.error('iframeへのアクセスに失敗:', e);
