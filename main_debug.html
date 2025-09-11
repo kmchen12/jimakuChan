@@ -1825,40 +1825,124 @@
                     console.log('[DEBUG] Chrome翻訳APIが利用可能です');
                     updateTranslationStatus('Chrome翻訳中...', '#4CAF50');
                     
-                    // 翻訳元言語と翻訳先言語を設定
-                    const sourceLang = 'ja';  // 日本語
-                    const targetLang = 'en';  // 英語
+                    // 翻訳元言語
+                    const sourceLang = 'ja';  // 日本語固定
                     
-                    console.log('[DEBUG] 翻訳言語設定 - 元:', sourceLang, '先:', targetLang);
+                    // 翻訳先言語を取得（URLパラメータから）
+                    const targetLang1 = arg_trans || 'en';  // 第1言語（デフォルト: 英語）
+                    const targetLang2 = arg_trans2;  // 第2言語
+                    const targetLang3 = arg_trans3;  // 第3言語
                     
-                    // Chrome内蔵翻訳を実行
-                    window.chromeTranslator.translate(textToTranslate, sourceLang, targetLang)
-                        .then(translatedText => {
-                            console.log('[DEBUG] Chrome翻訳成功:', translatedText);
-                            
-                            // 翻訳結果を表示
-                            const filteredText = applyTranslationFilter(translatedText, 1);
-                            document.getElementById('trans_text-imb').innerHTML = filteredText;
-                            document.getElementById('trans_text-bg').innerHTML = filteredText;
-                            document.getElementById('trans_text-fg').innerHTML = filteredText;
-                            
+                    console.log('[DEBUG] 翻訳言語設定 - 元:', sourceLang, '先1:', targetLang1, '先2:', targetLang2, '先3:', targetLang3);
+                    
+                    let translationCount = 0;
+                    let completedCount = 0;
+                    let successCount = 0;
+                    const translatedLanguages = [];
+                    
+                    // すべての翻訳が完了したかチェックする関数
+                    function checkAllTranslationsComplete() {
+                        if (completedCount === translationCount) {
+                            // 親ウィンドウに翻訳完了を通知
+                            if (window.parent !== window) {
+                                window.parent.postMessage({
+                                    type: 'debugTranslationComplete',
+                                    languages: translatedLanguages,
+                                    successCount: successCount,
+                                    totalCount: translationCount
+                                }, '*');
+                            }
+                            console.log('[DEBUG] 全翻訳完了 - 成功:', successCount, '/', translationCount);
+                        }
+                    }
+                    
+                    // 第1言語の翻訳
+                    if (targetLang1) {
+                        translationCount++;
+                        window.chromeTranslator.translate(textToTranslate, sourceLang, targetLang1)
+                            .then(translatedText => {
+                                console.log('[DEBUG] Chrome翻訳1成功:', translatedText);
+                                const filteredText = applyTranslationFilter(translatedText, 1);
+                                document.getElementById('trans_text-imb').innerHTML = filteredText;
+                                document.getElementById('trans_text-bg').innerHTML = filteredText;
+                                document.getElementById('trans_text-fg').innerHTML = filteredText;
+                                successCount++;
+                                translatedLanguages.push(`ja→${targetLang1}`);
+                                completedCount++;
+                                checkAllTranslationsComplete();
+                            })
+                            .catch(error => {
+                                console.error('[DEBUG] Chrome翻訳1エラー:', error);
+                                document.getElementById('trans_text-imb').innerHTML = '[翻訳1エラー]';
+                                document.getElementById('trans_text-bg').innerHTML = '[翻訳1エラー]';
+                                document.getElementById('trans_text-fg').innerHTML = '[翻訳1エラー]';
+                                completedCount++;
+                                checkAllTranslationsComplete();
+                            });
+                    }
+                    
+                    // 第2言語の翻訳
+                    if (targetLang2) {
+                        translationCount++;
+                        window.chromeTranslator.translate(textToTranslate, sourceLang, targetLang2)
+                            .then(translatedText => {
+                                console.log('[DEBUG] Chrome翻訳2成功:', translatedText);
+                                const filteredText = applyTranslationFilter(translatedText, 2);
+                                document.getElementById('trans_text2-imb').innerHTML = filteredText;
+                                document.getElementById('trans_text2-bg').innerHTML = filteredText;
+                                document.getElementById('trans_text2-fg').innerHTML = filteredText;
+                                successCount++;
+                                translatedLanguages.push(`ja→${targetLang2}`);
+                                completedCount++;
+                                checkAllTranslationsComplete();
+                            })
+                            .catch(error => {
+                                console.error('[DEBUG] Chrome翻訳2エラー:', error);
+                                document.getElementById('trans_text2-imb').innerHTML = '[翻訳2エラー]';
+                                document.getElementById('trans_text2-bg').innerHTML = '[翻訳2エラー]';
+                                document.getElementById('trans_text2-fg').innerHTML = '[翻訳2エラー]';
+                                completedCount++;
+                                checkAllTranslationsComplete();
+                            });
+                    }
+                    
+                    // 第3言語の翻訳
+                    if (targetLang3) {
+                        translationCount++;
+                        window.chromeTranslator.translate(textToTranslate, sourceLang, targetLang3)
+                            .then(translatedText => {
+                                console.log('[DEBUG] Chrome翻訳3成功:', translatedText);
+                                const filteredText = applyTranslationFilter(translatedText, 3);
+                                document.getElementById('trans_text3-imb').innerHTML = filteredText;
+                                document.getElementById('trans_text3-bg').innerHTML = filteredText;
+                                document.getElementById('trans_text3-fg').innerHTML = filteredText;
+                                successCount++;
+                                translatedLanguages.push(`ja→${targetLang3}`);
+                                completedCount++;
+                                checkAllTranslationsComplete();
+                            })
+                            .catch(error => {
+                                console.error('[DEBUG] Chrome翻訳3エラー:', error);
+                                document.getElementById('trans_text3-imb').innerHTML = '[翻訳3エラー]';
+                                document.getElementById('trans_text3-bg').innerHTML = '[翻訳3エラー]';
+                                document.getElementById('trans_text3-fg').innerHTML = '[翻訳3エラー]';
+                                completedCount++;
+                                checkAllTranslationsComplete();
+                            });
+                    }
+                    
+                    // すべての翻訳が完了したかチェック
+                    function checkAllTranslationsComplete() {
+                        if (completedCount === translationCount) {
                             updateTranslationStatus('Chrome翻訳完了', '#4CAF50');
-                            console.log('[DEBUG] 翻訳結果をDOM要素に設定完了');
+                            console.log('[DEBUG] すべての翻訳完了 - 総数:', translationCount);
                             
                             // 翻訳テキスト削除タイマー開始
                             if (typeof startTranslationDeleteTimer === 'function') {
                                 startTranslationDeleteTimer();
                             }
-                        })
-                        .catch(error => {
-                            console.error('[DEBUG] Chrome翻訳エラー:', error);
-                            updateTranslationStatus('Chrome翻訳エラー', '#ff0000');
-                            
-                            // エラー時は元のテキストをそのまま表示
-                            document.getElementById('trans_text-imb').innerHTML = '[翻訳エラー]';
-                            document.getElementById('trans_text-bg').innerHTML = '[翻訳エラー]';
-                            document.getElementById('trans_text-fg').innerHTML = '[翻訳エラー]';
-                        });
+                        }
+                    }
                 } else {
                     console.log('[DEBUG] Chrome翻訳APIが利用できません - フォールバック処理を実行');
                     console.log('[DEBUG] chromeTranslationReady:', chromeTranslationReady);

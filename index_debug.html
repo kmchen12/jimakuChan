@@ -362,8 +362,17 @@ function sendDebugText() {
             iframe.contentWindow.postMessage(message, '*');
             console.log('[DEBUG] postMessage送信完了');
             
-            // カウンター更新
-            debugTotalCount++;
+            // 第2、第3言語も取得
+            const targetLang2 = document.getElementById('trans_language2').value;
+            const targetLang3 = document.getElementById('trans_language3').value;
+            
+            // 翻訳予定数をカウント（設定された言語数）
+            let expectedTranslations = 1; // 第1言語は必須
+            if (targetLang2 && targetLang2 !== '----') expectedTranslations++;
+            if (targetLang3 && targetLang3 !== '----') expectedTranslations++;
+            
+            // カウンター更新（各言語分）
+            debugTotalCount += expectedTranslations;
             updateDebugCounters();
             
             // 言語ペア統計更新
@@ -1727,6 +1736,35 @@ window.addEventListener('DOMContentLoaded', function() {
                         timerElement.textContent = `（${minutes}:${seconds}後にリロード）`;
                     } else {
                         timerElement.textContent = '（待機中）';
+                    }
+                }
+            }
+            
+            // デバッグモード：翻訳成功メッセージ
+            if (event.data && event.data.type === 'debugTranslationComplete') {
+                console.log('[DEBUG] 翻訳完了通知受信:', event.data);
+                
+                // ログに記録
+                const logEntry = {
+                    time: new Date().toISOString(),
+                    type: 'translation_complete',
+                    languages: event.data.languages,
+                    successCount: event.data.successCount,
+                    totalCount: event.data.totalCount
+                };
+                
+                debugLogStorage.push(logEntry);
+                if (debugLogStorage.length > 1000) {
+                    debugLogStorage.shift();
+                }
+                
+                // ログ表示エリアに追加
+                const logArea = document.getElementById('debugLogArea');
+                if (logArea) {
+                    const logText = `[${new Date().toLocaleTimeString()}] 翻訳完了 - 成功: ${event.data.successCount}/${event.data.totalCount} 言語`;
+                    logArea.value = logText + '\n' + logArea.value;
+                    if (logArea.value.length > 10000) {
+                        logArea.value = logArea.value.substring(0, 10000);
                     }
                 }
             }
