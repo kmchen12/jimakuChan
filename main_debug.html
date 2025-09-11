@@ -1833,7 +1833,9 @@
                     const targetLang2 = arg_trans2;  // 第2言語
                     const targetLang3 = arg_trans3;  // 第3言語
                     
+                    console.log('[DEBUG] URLパラメータ確認 - arg_trans:', arg_trans, 'arg_trans2:', arg_trans2, 'arg_trans3:', arg_trans3);
                     console.log('[DEBUG] 翻訳言語設定 - 元:', sourceLang, '先1:', targetLang1, '先2:', targetLang2, '先3:', targetLang3);
+                    console.log('[DEBUG] 条件チェック - targetLang2:', !!targetLang2, 'targetLang3:', !!targetLang3);
                     
                     let translationCount = 0;
                     let completedCount = 0;
