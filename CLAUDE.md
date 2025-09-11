@@ -44,6 +44,22 @@ python run_server.py
 ```
 Starts HTTPS server on localhost:4443 (required for Web Speech API)
 
+## 🚨 CRITICAL DEVELOPMENT RULES 🚨
+
+### **NEVER COMMIT WITHOUT TESTING FIRST**
+- **絶対にテスト前にコミットしてはいけません**
+- 必ず以下の手順を守ること:
+  1. コード修正完了
+  2. ユーザーがテスト実施（サーバー起動は**ユーザーが行う**）
+  3. 実際の動作確認完了
+  4. 問題がないことを確認後にのみコミット
+- この手順を飛ばすことは**絶対禁止**
+
+### **NEVER START SERVER AUTOMATICALLY**
+- **`python run_server.py` などのサーバー起動コマンドを実行してはいけません**
+- サーバー起動は**必ずユーザーが手動で行う**
+- Bashツールでサーバー起動コマンドを実行することは**絶対禁止**
+
 ## File Structure
 - `index.html` - Configuration interface (loads `main.html` in iframe)
 - `main.html` - Subtitle display with speech recognition engine

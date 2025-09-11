@@ -1,0 +1,2271 @@
+<!DOCTYPE html>
+<html>
+ 
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css?family=M+PLUS+1p" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=M+PLUS+Rounded+1c" rel="stylesheet">
+
+    <link href="https://fonts.googleapis.com/css?family=Hachi+Maru+Pop" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Yusei+Magic" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Reggae+One" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Noto+Sans+JP" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Sawarabi+Gothic" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/earlyaccess/nicomoji.css" rel="stylesheet">
+
+    <link href="./font.css" rel="stylesheet">
+
+    <link rel="icon" href="./img/favicon2/favicon.ico" />
+    <script src="js/bouyomichan_client.js"></script>
+    <script src="chrome_translator_v2.js"></script>
+
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FKQVD3TMXH"></script>
+    <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-FKQVD3TMXH');
+    </script>
+    <!-- END: Google tag (gtag.js) -->
+
+
+    <title>jimakuChan：音声認識字幕ちゃん [DEBUG MODE]</title>
+
+    <style type="text/css">
+        button, input, select, textarea {
+            /* font-family : inherit; */
+            /* font-family: 'メイリオ', Meiryo,sans-serif; */
+            /* font-size   : 300%; */
+            /* color  : black; */
+            font-weight : 0;
+            /*text-align  : center;       /* left, center, right */
+            vertical-align : top;    /* top, middle, bottom */
+            -webkit-text-stroke-color: rgb(21, 0, 141);
+            -webkit-text-stroke-width: 0px;
+        }
+
+        html {
+            height: 100%;
+            width: 100%;
+        }
+
+        body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            overflow:hidden;
+            font-family: 'M PLUS Rounded 1c', sans-serif;
+            /* font-family:'07NikumaruFont'; */
+        }
+        table {
+            width: 100%;
+            overflow:hidden;
+            /* table-layout: fixed; */
+        }
+        table.btm_table {
+            position:absolute;
+            /* bottom:0; */
+        }
+
+        table td {
+            /*word-break: break-all;*/
+            overflow-wrap : break-word;
+        }
+    </style>
+
+    <style>
+        /* Chrome翻訳モデルダウンロード状態表示 */
+        #downloadStatus {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            z-index: 10000;
+            display: none;
+            animation: pulse 2s infinite;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        #downloadStatus.downloading {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #856404;
+        }
+        
+        #downloadStatus.completed {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            color: #155724;
+        }
+    </style>
+
+    <style>
+        /* prepare the selectors to add a stroke to */
+
+        .stroke-single-imb{
+            /* position: absolute; */
+            left: 0;
+            right: 0;
+            margin: 0;
+            margin-left: 5px;
+            /* -webkit-text-stroke: 0px #0000FF;  */
+        }
+
+        .stroke-single-bg{
+            position: absolute;
+            left: 0;
+            right: 0;
+            margin: auto;
+            margin-left: 5px;
+            /* -webkit-text-stroke: 3px #FF0000;  */
+        }
+        /* add a single stroke */
+        .stroke-single-fg{
+            position: absolute;
+            left: 0;
+            right: 0;
+            margin: auto;
+            margin-left: 5px;
+            /* -webkit-text-stroke: 0px #FFFFFF; */
+        }
+
+    </style>
+
+    <script>
+
+        // URLパラメータ取得用関数 ---------------------------
+        function getParam(name, url) {
+            if (!url) url = window.location.href;
+            name = name.replace(/[\[\]]/g, "\\$&");
+            var regex = new RegExp("[?&]" + name + "(=([^&]*)|&|$)"),
+                results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, " "));
+        }
+
+        // 一定時間変化がなかったら消す ------------------------------------
+        var fn_del = function() {
+            document.getElementById('speech_text-imb').innerHTML = '';
+            document.getElementById('speech_text-bg').innerHTML = '';
+            document.getElementById('speech_text-fg').innerHTML = '';
+            document.getElementById('trans_text-imb').innerHTML = '';
+            document.getElementById('trans_text-bg').innerHTML = '';
+            document.getElementById('trans_text-fg').innerHTML = '';
+            document.getElementById('trans_text2-imb').innerHTML = '';
+            document.getElementById('trans_text2-bg').innerHTML = '';
+            document.getElementById('trans_text2-fg').innerHTML = '';
+            document.getElementById('trans_text3-imb').innerHTML = '';
+            document.getElementById('trans_text3-bg').innerHTML = '';
+            document.getElementById('trans_text3-fg').innerHTML = '';
+
+            // 各フラグをリセット
+            isSpeechRecognitionComplete = false;
+            isTextTranslation1Complete = false;
+            isTextTranslation2Complete = false;
+            isTextTranslation3Complete = false;
+            
+            // 保持テキストもクリア
+            currentInterimText = '';
+            lastFinalText = '';
+        };
+
+
+        // URLからの値読み込み(削除タイマー) -------------------
+        var timer = getParam('timer');
+        
+        // 一定時間認識結果がなかったら，そこで認識終了 --------------------
+        var short_pause = getParam('short_pause');
+        
+        // ========== DEBUG MODE 起動確認 ==========
+        console.log('%c===========================================', 'color: red; font-size: 16px; font-weight: bold');
+        console.log('%c[DEBUG MODE] main_debug.html 読み込み完了', 'color: red; font-size: 16px; font-weight: bold');
+        console.log('%c[DEBUG MODE] 音声認識は無効化されています', 'color: red; font-size: 16px; font-weight: bold');
+        console.log('%c[DEBUG MODE] テストテキスト受信で動作します', 'color: red; font-size: 16px; font-weight: bold');
+        console.log('%c[DEBUG VERSION] 2024.01.11 v1.0', 'background: yellow; color: blue; font-size: 14px');
+        console.log('%c===========================================', 'color: red; font-size: 16px; font-weight: bold');
+        
+        // デバッグ用：タイマー設定を確認
+        console.log('タイマー設定:', {
+            timer: timer + 'ms (テキスト削除)',
+            short_pause: short_pause + 'ms (音声ポーズ検出)'
+        });
+
+        //////////////////////////////////////////////////////////
+        // URLからの値読み込み -------------------
+        var arg_showAudioLevel = getParam('showAudioLevel');
+        var arg_enhanceAccuracy = getParam('enhanceAccuracy');
+        var arg_noiseReduction = getParam('noiseReduction');
+        var arg_volumeNormalization = getParam('volumeNormalization');
+        var arg_showConfidence = getParam('showConfidence');
+        var arg_useCustomDictionary = getParam('useCustomDictionary');
+        var arg_customDictionary = getParam('customDictionary');
+        var arg_recog = getParam('recog');
+        console.log('音声認識言語パラメータ:', arg_recog);
+        var arg_trans = getParam('trans');
+        var arg_trans2 = getParam('trans2');
+        var arg_trans3 = getParam('trans3');
+        
+        // ============== DEBUG MODE: デフォルト翻訳設定 ==============
+        // デバッグモードでは、翻訳設定がない場合にデフォルト値を設定
+        if (!arg_trans && !arg_trans2 && !arg_trans3) {
+            console.log('[DEBUG MODE] 翻訳言語が設定されていないため、デフォルト値を設定');
+            arg_trans = 'en';  // 英語翻訳をデフォルトで有効化
+            trans_destlang = 'en';
+        }
+        
+        // gas_keyが設定されているかチェック
+        if (!gas_key || gas_key === '') {
+            console.log('[DEBUG MODE] gas_keyが設定されていません。翻訳機能を使用するにはgas_keyが必要です。');
+            console.log('[DEBUG MODE] Chrome翻訳またはGAS APIキーの設定が必要です。');
+        } else {
+            console.log('[DEBUG MODE] gas_keyが設定されています:', gas_key.substring(0, 10) + '...');
+        }
+        // ============================================================
+
+        /////////////////////////////////////////////////////////
+        // 翻訳API用設定 ---------------------------
+        if (arg_trans != null) var request = new XMLHttpRequest();
+        if (arg_trans2 != null) var request2 = new XMLHttpRequest();
+        if (arg_trans3 != null) var request3 = new XMLHttpRequest();
+
+        // 翻訳用設定 ---------------------------
+        var trans_sourcelang = 'ja';
+        var trans_destlang = 'en';
+        var trans2_destlang = '';
+        var trans3_destlang = '';
+
+
+        var gas_key = getParam('gas_key');
+        
+        var TRANS_URL = 'https://script.google.com/macros/s/' + gas_key + '/exec';
+        var query = ''
+
+        // その他の設定 -----------------------
+        var bouyomi = getParam('bouyomi');
+        var anti_sexual = getParam('anti_sexual');
+        
+        // カスタム辞書の準備
+        var customDictionary = {};
+        if (arg_useCustomDictionary === 'true' && arg_customDictionary) {
+            try {
+                const dictionaryText = decodeURIComponent(arg_customDictionary);
+                const entries = dictionaryText.split('、').concat(dictionaryText.split(','));
+                entries.forEach(entry => {
+                    const parts = entry.split('=');
+                    if (parts.length === 2) {
+                        customDictionary[parts[0].trim()] = parts[1].trim();
+                    }
+                });
+                console.log('カスタム辞書を読み込みました:', Object.keys(customDictionary).length + '件');
+            } catch (error) {
+                console.error('カスタム辞書の解析に失敗:', error);
+            }
+        }
+        
+        // 翻訳前処理関数（カスタム辞書適用）
+        function applyCustomDictionary(text) {
+            if (arg_useCustomDictionary !== 'true' || Object.keys(customDictionary).length === 0) {
+                return text;
+            }
+            
+            let processedText = text;
+            for (const [key, value] of Object.entries(customDictionary)) {
+                const regex = new RegExp('\\b' + key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+                processedText = processedText.replace(regex, value);
+            }
+            return processedText;
+        }
+
+        // 不適切語フィルタリング関数（音声認識用）
+        function applyContentFilter(text) {
+            if (anti_sexual === 'false' || badWords_forRecog.length === 0) {
+                return text;
+            }
+            
+            let filteredText = text;
+            
+            // 保護する単語を一時的なプレースホルダーに置き換える
+            goodWords_forRecog.forEach((word, index) => {
+                if (word && word.trim() !== '') {
+                    let placeholder = `{{GOOD_WORD_${index}}}`;
+                    const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "gi");
+                    filteredText = filteredText.replace(regex, placeholder);
+                }
+            });
+
+            // 不適切語を***に置き換える
+            badWords_forRecog.forEach(word => {
+                if (word && word.trim() !== '') {
+                    const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "gi");
+                    filteredText = filteredText.replace(regex, "*".repeat(word.length));
+                }
+            });
+
+            // 一時的なプレースホルダーを保護する単語に戻す
+            goodWords_forRecog.forEach((word, index) => {
+                if (word && word.trim() !== '') {
+                    let placeholder = `{{GOOD_WORD_${index}}}`;
+                    const regex = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "g");
+                    filteredText = filteredText.replace(regex, word);
+                }
+            });
+
+            return filteredText;
+        }
+
+        // 翻訳結果用フィルタリング関数
+        function applyTranslationFilter(text, transType) {
+            if (anti_sexual === 'false' || !text || text.trim() === '') {
+                return text;
+            }
+            
+            let badWordsList, goodWordsList;
+            
+            // 翻訳タイプに応じて適切な不適切語リストを選択
+            switch(transType) {
+                case 1:
+                    badWordsList = badWords_forTrans1;
+                    goodWordsList = goodWords_forTrans1;
+                    break;
+                case 2:
+                    badWordsList = badWords_forTrans2;
+                    goodWordsList = goodWords_forTrans2;
+                    break;
+                case 3:
+                    badWordsList = badWords_forTrans3;
+                    goodWordsList = goodWords_forTrans3;
+                    break;
+                default:
+                    return text;
+            }
+            
+            if (badWordsList.length === 0) {
+                console.log('翻訳' + transType + '用の不適切語リストが空のため、フィルタリングをスキップ');
+                return text;
+            }
+            
+            let filteredText = text;
+            
+            // 保護する単語を一時的なプレースホルダーに置き換える
+            goodWordsList.forEach((word, index) => {
+                if (word && word.trim() !== '') {
+                    let placeholder = `{{TRANS${transType}_GOOD_WORD_${index}}}`;
+                    const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "gi");
+                    filteredText = filteredText.replace(regex, placeholder);
+                }
+            });
+
+            // 不適切語を***に置き換える
+            badWordsList.forEach(word => {
+                if (word && word.trim() !== '') {
+                    const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "gi");
+                    filteredText = filteredText.replace(regex, "*".repeat(word.length));
+                }
+            });
+
+            // 一時的なプレースホルダーを保護する単語に戻す
+            goodWordsList.forEach((word, index) => {
+                if (word && word.trim() !== '') {
+                    let placeholder = `{{TRANS${transType}_GOOD_WORD_${index}}}`;
+                    const regex = new RegExp(placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "g");
+                    filteredText = filteredText.replace(regex, word);
+                }
+            });
+
+            console.log('翻訳' + transType + 'フィルタリング: "' + text + '" -> "' + filteredText + '"');
+            return filteredText;
+        }
+
+
+        // 一定時間認識結果がなかったら，そこで認識終了 --------------------
+        // short_pauseは上部で既に定義済み
+
+        var stop_recog;
+        var id_stop_recog;
+
+        var count = 0;
+
+        // URLから Bad/Good 単語リストをリスト形式で読み込む -----------------------
+        // ハイフン付き言語コードをファイルパス用にマッピング
+        function getFilterLanguageId(langCode) {
+            const languageMapping = {
+                'zh-CN': 'zh',     // 中国語（簡体字）
+                'zh-TW': 'zh',     // 台湾語（繁体字） → 中国語フィルターを使用
+                'zh-HK': 'zh',     // 香港語（繁体字） → 中国語フィルターを使用
+                'en-US': 'en',     // アメリカ英語 → 英語フィルターを使用
+                'fr-FR': 'fr',     // フランス語
+                'it-IT': 'it',     // イタリア語
+                'de-DE': 'de',     // ドイツ語
+                'tr-TR': 'tr',     // トルコ語
+                'sv-SE': 'sv',     // スウェーデン語
+                'pl-PL': 'pl',     // ポーランド語
+                'uk-UA': 'uk',     // ウクライナ語
+                'ru-RU': 'ru',     // ロシア語
+                'es-ES': 'es',     // スペイン語
+                'pt-PT': 'pt',     // ポルトガル語
+                'th-TH': 'th',     // タイ語
+                'el-GR': 'el'      // ギリシャ語
+            };
+            
+            return languageMapping[langCode] || langCode;
+        }
+        
+        // 翻訳API用の言語コードマッピング
+        function getTranslationLanguageId(langCode) {
+            const languageMapping = {
+                'zh-CN': 'zh-CN',  // 中国語（簡体字）
+                'zh-TW': 'zh-TW',  // 台湾語（繁体字）
+                'zh-HK': 'zh-HK',  // 香港語（繁体字）
+                'en-US': 'en',     // アメリカ英語
+                'fr-FR': 'fr',     // フランス語
+                'it-IT': 'it',     // イタリア語
+                'de-DE': 'de',     // ドイツ語
+                'tr-TR': 'tr',     // トルコ語
+                'sv-SE': 'sv',     // スウェーデン語
+                'pl-PL': 'pl',     // ポーランド語
+                'uk-UA': 'uk',     // ウクライナ語
+                'ru-RU': 'ru',     // ロシア語
+                'es-ES': 'es',     // スペイン語
+                'pt-PT': 'pt',     // ポルトガル語
+                'nl-NL': 'nl',     // オランダ語
+                'id-ID': 'id',     // インドネシア語
+                'vi-VN': 'vi',     // ベトナム語
+                'th-TH': 'th',     // タイ語
+                'ar-SA': 'ar',     // アラビア語
+                'el-GR': 'el',     // ギリシャ語
+                'ja': 'ja',        // 日本語
+                'ko': 'ko'         // 韓国語
+            };
+            
+            return languageMapping[langCode] || langCode;
+        }
+        
+        let languageId = getFilterLanguageId(arg_recog);
+        const baseURL = "https://raw.githubusercontent.com/sayonari/goodBadWordlist/main/";
+        const badListPath = `/BadList.txt`; // 禁止ワードリストのパス
+        const goodListPath = `/GoodList.txt`; // 許可ワードリストのパス
+        var badWords_forRecog = [];
+        var goodWords_forRecog = [];
+        
+        // 翻訳結果用の不適切語リスト
+        var badWords_forTrans1 = [];
+        var goodWords_forTrans1 = [];
+        var badWords_forTrans2 = [];
+        var goodWords_forTrans2 = [];
+        var badWords_forTrans3 = [];
+        var goodWords_forTrans3 = [];
+
+        console.log("original lang code: " + arg_recog + " -> filter lang: " + languageId);
+        console.log("url: " + baseURL + languageId + badListPath);
+        if (anti_sexual !== 'false') {
+            // 禁止ワードリストを読み込む
+            fetch(baseURL + languageId + badListPath)
+                .then( r => r.text() )
+                .then( t => {
+                    badWords_forRecog = t.split("\n").filter(Boolean);
+                    console.log("loaded Bad Words num: " + badWords_forRecog.length);
+                });
+
+            // 許可ワードリストを読み込む
+            fetch(baseURL + languageId + goodListPath)
+                .then( r => r.text() )
+                .then( t => {
+                    goodWords_forRecog = t.split("\n").filter(Boolean);
+                });
+                
+            // 翻訳言語1の不適切語リストを読み込む
+            if(arg_trans != null) {
+                const trans1LangId = getFilterLanguageId(arg_trans);
+                console.log("trans1 lang: " + arg_trans + " -> filter lang: " + trans1LangId);
+                fetch(baseURL + trans1LangId + badListPath)
+                    .then( r => r.text() )
+                    .then( t => {
+                        badWords_forTrans1 = t.split("\n").filter(Boolean);
+                        console.log("loaded Trans1 Bad Words num: " + badWords_forTrans1.length);
+                    })
+                    .catch(e => console.log("Trans1 Bad Words list not found for: " + trans1LangId));
+                    
+                fetch(baseURL + trans1LangId + goodListPath)
+                    .then( r => r.text() )
+                    .then( t => {
+                        goodWords_forTrans1 = t.split("\n").filter(Boolean);
+                    })
+                    .catch(e => console.log("Trans1 Good Words list not found for: " + trans1LangId));
+            }
+            
+            // 翻訳言語2の不適切語リストを読み込む
+            if(arg_trans2 != null) {
+                const trans2LangId = getFilterLanguageId(arg_trans2);
+                console.log("trans2 lang: " + arg_trans2 + " -> filter lang: " + trans2LangId);
+                fetch(baseURL + trans2LangId + badListPath)
+                    .then( r => r.text() )
+                    .then( t => {
+                        badWords_forTrans2 = t.split("\n").filter(Boolean);
+                        console.log("loaded Trans2 Bad Words num: " + badWords_forTrans2.length);
+                    })
+                    .catch(e => console.log("Trans2 Bad Words list not found for: " + trans2LangId));
+                    
+                fetch(baseURL + trans2LangId + goodListPath)
+                    .then( r => r.text() )
+                    .then( t => {
+                        goodWords_forTrans2 = t.split("\n").filter(Boolean);
+                    })
+                    .catch(e => console.log("Trans2 Good Words list not found for: " + trans2LangId));
+            }
+            
+            // 翻訳言語3の不適切語リストを読み込む
+            if(arg_trans3 != null) {
+                const trans3LangId = getFilterLanguageId(arg_trans3);
+                console.log("trans3 lang: " + arg_trans3 + " -> filter lang: " + trans3LangId);
+                fetch(baseURL + trans3LangId + badListPath)
+                    .then( r => r.text() )
+                    .then( t => {
+                        badWords_forTrans3 = t.split("\n").filter(Boolean);
+                        console.log("loaded Trans3 Bad Words num: " + badWords_forTrans3.length);
+                    })
+                    .catch(e => console.log("Trans3 Bad Words list not found for: " + trans3LangId));
+                    
+                fetch(baseURL + trans3LangId + goodListPath)
+                    .then( r => r.text() )
+                    .then( t => {
+                        goodWords_forTrans3 = t.split("\n").filter(Boolean);
+                    })
+                    .catch(e => console.log("Trans3 Good Words list not found for: " + trans3LangId));
+            }
+        }
+
+
+        // 音声認識本体 /////////////////////////////////////////////////
+        window.SpeechRecognition = window.SpeechRecognition || webkitSpeechRecognition;
+
+        // Web Speech APIはデバイス選択をサポートしないため、この処理は無効
+        function initializeAudioDevice() {
+            console.log('Web Speech APIは既定の音声デバイスのみ使用します');
+            return Promise.resolve();
+        }
+
+        // 音声認識用設定 ----------------------
+        var recognition = new webkitSpeechRecognition();
+        recognition.lang = 'ja';
+        recognition.interimResults = true;
+        // recognition.continuous = true;
+        
+        // 音声認識の状態管理
+        var recognitionState = 'stopped'; // 'stopped', 'starting', 'running'
+        var recognitionRestartInProgress = false; // 再起動処理中フラグ
+        
+        // 安全な音声認識再起動関数
+        function safeRestartRecognition(reason = '不明') {
+            if (recognitionRestartInProgress) {
+                console.log(`音声認識再起動スキップ: 既に処理中 (理由: ${reason})`);
+                return;
+            }
+            
+            console.log(`音声認識再起動開始 (理由: ${reason}, 現在状態: ${recognitionState})`);
+            recognitionRestartInProgress = true;
+            
+            try {
+                // 実行中の場合は停止
+                if (recognitionState === 'running' || recognitionState === 'starting') {
+                    recognition.stop();
+                    recognitionState = 'stopped';
+                }
+                
+                // 少し待機してから再起動
+                setTimeout(() => {
+                    try {
+                        if (recognition && recognitionState === 'stopped') {
+                            recognitionState = 'starting';
+                            recognition.start();
+                            console.log(`音声認識再起動完了 (理由: ${reason})`);
+                        }
+                    } catch (error) {
+                        console.error(`音声認識再起動エラー (理由: ${reason}):`, error);
+                        recognitionState = 'stopped';
+                    } finally {
+                        recognitionRestartInProgress = false;
+                    }
+                }, 1000);
+            } catch (error) {
+                console.error(`音声認識停止エラー (理由: ${reason}):`, error);
+                recognitionRestartInProgress = false;
+            }
+        }
+        var recog_text = '';
+        var recog_IM_text = '';
+        var recog_conf = 0;
+        var trans_text = '';
+        var trans2_text = '';
+        var trans3_text = '';
+
+        var my_count = count;
+        count = count + 1;
+
+        // その他設定 ----------------------------
+        var isSpeechRecognitionComplete = false;
+        
+        // 翻訳方法の設定（デバッグモードではChrome内蔵翻訳固定）
+        var selectedTranslationMethod = 'chrome'; // デバッグモードはChrome内蔵翻訳のみ使用
+        var chromeTranslationReady = false;
+        
+        console.log('初期翻訳方法:', selectedTranslationMethod);
+        
+        // デバッグモードでは自動リロードは実質無効（100時間後）
+        // startChromeTranslationReloadTimer(); // 無効化
+        
+        
+        // Chrome内蔵翻訳使用時の自動リロード機能（デバッグモードでは100時間に設定）
+        var chromeTranslationStartTime = null;
+        var CHROME_TRANSLATION_RELOAD_INTERVAL = 100 * 60 * 60 * 1000; // 100時間（実質無効）
+        var chromeTranslationReloadTimer = null;
+        var chromeTranslationCountdownInterval = null;
+        var chromeTranslationPauseTime = null; // タブ非アクティブ時の一時停止時刻
+        
+        // ページ可視性変更の監視（タブ切り替え時の適切な処理）
+        document.addEventListener('visibilitychange', function() {
+            if (selectedTranslationMethod === 'chrome' && chromeTranslationStartTime) {
+                if (document.hidden) {
+                    // タブが非表示になった時：一時停止時刻を記録
+                    chromeTranslationPauseTime = Date.now();
+                } else {
+                    // タブが表示された時：一時停止時間を開始時刻に加算して調整
+                    if (chromeTranslationPauseTime) {
+                        const pauseDuration = Date.now() - chromeTranslationPauseTime;
+                        chromeTranslationStartTime += pauseDuration;
+                        chromeTranslationPauseTime = null;
+                        updateChromeTranslationCountdown(); // 即座にカウントダウンを更新
+                    }
+                }
+            }
+        });
+        
+        // 親ウィンドウからの翻訳方法切り替えメッセージを受信
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'updateTranslationMethod') {
+                selectedTranslationMethod = event.data.method;
+                console.log('翻訳方法を切り替え:', selectedTranslationMethod);
+                
+                // Chrome内蔵翻訳に切り替わった場合、自動リロードタイマーを開始
+                // （Chrome Translation API未対応でもタイマーは動作させる）
+                if (selectedTranslationMethod === 'chrome') {
+                    startChromeTranslationReloadTimer();
+                } else {
+                    stopChromeTranslationReloadTimer();
+                }
+            } else if (event.data && event.data.type === 'forceStartTimer') {
+                selectedTranslationMethod = 'chrome';
+                startChromeTranslationReloadTimer();
+            }
+        });
+        
+        // Chrome内蔵翻訳の30分自動リロード機能
+        function startChromeTranslationReloadTimer() {
+            if (chromeTranslationReloadTimer) {
+                clearTimeout(chromeTranslationReloadTimer);
+            }
+            if (chromeTranslationCountdownInterval) {
+                clearInterval(chromeTranslationCountdownInterval);
+            }
+            
+            chromeTranslationStartTime = Date.now();
+            
+            chromeTranslationReloadTimer = setTimeout(() => {
+                window.location.reload();
+            }, CHROME_TRANSLATION_RELOAD_INTERVAL);
+            
+            chromeTranslationCountdownInterval = setInterval(() => {
+                updateChromeTranslationCountdown();
+            }, 1000);
+            
+            updateChromeTranslationCountdown();
+        }
+        
+        function stopChromeTranslationReloadTimer() {
+            if (chromeTranslationReloadTimer) {
+                clearTimeout(chromeTranslationReloadTimer);
+                chromeTranslationReloadTimer = null;
+            }
+            if (chromeTranslationCountdownInterval) {
+                clearInterval(chromeTranslationCountdownInterval);
+                chromeTranslationCountdownInterval = null;
+            }
+            if (chromeTranslationStartTime) {
+                chromeTranslationStartTime = null;
+            }
+            
+            updateChromeTranslationCountdown(true);
+        }
+        
+        // カウントダウン情報を親ウィンドウに送信
+        function updateChromeTranslationCountdown(reset = false) {
+            try {
+                if (reset || !chromeTranslationStartTime) {
+                    window.parent.postMessage({
+                        type: 'chromeTranslationCountdown',
+                        totalSeconds: 0,
+                        remainingMinutes: 0,
+                        remainingSeconds: 0
+                    }, '*');
+                    return;
+                }
+                
+                const now = Date.now();
+                const elapsed = now - chromeTranslationStartTime;
+                const totalRemainingMs = Math.max(0, CHROME_TRANSLATION_RELOAD_INTERVAL - elapsed);
+                const totalRemainingSeconds = Math.max(1, Math.round(totalRemainingMs / 1000));
+                
+                const remainingMinutes = Math.floor(totalRemainingSeconds / 60);
+                const remainingSeconds = totalRemainingSeconds % 60;
+                
+                window.parent.postMessage({
+                    type: 'chromeTranslationCountdown',
+                    totalSeconds: totalRemainingSeconds,
+                    remainingMinutes: remainingMinutes,
+                    remainingSeconds: remainingSeconds
+                }, '*');
+                
+            } catch (error) {
+                setTimeout(() => updateChromeTranslationCountdown(reset), 1000);
+            }
+        }
+        
+        // グローバルエラーハンドリング（メモリ不足やクラッシュを防ぐ）
+        window.addEventListener('error', function(event) {
+            console.error('グローバルエラー:', event.error);
+            
+            // STATUS_BREADPOINT エラーやメモリ関連エラーをチェック
+            if (event.error && event.error.message && 
+                (event.error.message.includes('STATUS_BREADPOINT') || 
+                 event.error.message.includes('memory') ||
+                 event.error.message.includes('Out of memory'))) {
+                
+                console.warn('メモリ関連エラーを検出。緊急クリーンアップを実行します。');
+                
+                // 緊急クリーンアップを実行
+                if (window.chromeTranslator && typeof window.chromeTranslator.performMemoryCleanup === 'function') {
+                    window.chromeTranslator.performMemoryCleanup();
+                }
+                
+                // ガベージコレクションを促す
+                if (window.gc && typeof window.gc === 'function') {
+                    window.gc();
+                }
+                
+                // エラーメッセージを表示
+                updateTranslationStatus('メモリエラー検出', '#ff6b6b');
+            }
+        });
+
+        // 未処理のPromise拒否をキャッチ
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('未処理のPromise拒否:', event.reason);
+            
+            // Chrome Translation API関連のエラーの場合
+            if (event.reason && event.reason.message && 
+                event.reason.message.includes('Translation')) {
+                console.warn('Chrome翻訳APIエラーを検出。継続実行します。');
+                event.preventDefault(); // エラーを抑制
+            }
+        });
+        
+        // Chrome Translation APIの初期化を遅延実行
+        function initializeChromeTranslator() {
+            console.log('[DEBUG MODE] Chrome翻訳API初期化開始');
+            console.log('[DEBUG MODE] window.chromeTranslator:', window.chromeTranslator);
+            
+            if (window.chromeTranslator) {
+                console.log('[DEBUG MODE] chromeTranslatorオブジェクトが存在します');
+                // ダウンロード状態変更コールバックを設定
+                window.chromeTranslator.onDownloadStatusChange = function(status) {
+                // 親ウィンドウ（index.html）にメッセージを送信
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'downloadStatus',
+                        status: status.status,
+                        message: status.message,
+                        progress: status.progress, // 進捗率を追加
+                        downloadedSize: status.downloadedSize, // ダウンロード済みサイズ
+                        totalSize: status.totalSize, // 総サイズ
+                        sourceLang: status.sourceLang,
+                        targetLang: status.targetLang
+                    }, '*');
+                }
+            };
+            
+            window.chromeTranslator.checkAvailability().then(available => {
+                console.log('[DEBUG MODE] Chrome翻訳API利用可能性チェック結果:', available);
+                if (available) {
+                    chromeTranslationReady = true;
+                    console.log('[DEBUG MODE] Chrome翻訳APIが利用可能です - chromeTranslationReady = true');
+                    
+                    // Chrome内蔵翻訳が選択されている場合、自動リロードタイマーを開始
+                    if (selectedTranslationMethod === 'chrome') {
+                        startChromeTranslationReloadTimer();
+                    }
+                } else {
+                    console.log('[DEBUG MODE] Chrome翻訳APIが利用できません - available = false');
+                    chromeTranslationReady = false;
+                    // APIが利用できない場合でもChrome翻訳が選択されていれば警告表示
+                    if (selectedTranslationMethod === 'chrome') {
+                        console.log('[DEBUG MODE] Chrome翻訳が選択されていますが、APIが利用できません');
+                    }
+                }
+            }).catch(error => {
+                console.error('[DEBUG MODE] Chrome Translation API初期化エラー:', error);
+                chromeTranslationReady = false;
+            });
+            } else {
+                console.log('[DEBUG MODE] window.chromeTranslatorが定義されていません');
+                chromeTranslationReady = false;
+            }
+        }
+        
+        // DOMContentLoaded後に初期化を実行
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('[DEBUG MODE] DOMContentLoaded - Chrome翻訳APIを初期化');
+                setTimeout(initializeChromeTranslator, 500); // 少し遅延させて実行
+            });
+        } else {
+            // 既にDOMが読み込まれている場合
+            console.log('[DEBUG MODE] DOM already loaded - Chrome翻訳APIを初期化');
+            setTimeout(initializeChromeTranslator, 500);
+        }
+        
+        var isTextTranslation1Complete = false;
+        var isTextTranslation2Complete = false;
+        var isTextTranslation3Complete = false;
+        var currentInterimText = '';  // 現在の途中結果を保持
+        var lastFinalText = '';       // 最後の確定結果を保持
+
+        // 分離されたタイマー管理システム ----------------------------
+        var speechDeleteTimerId = null;  // 音声認識テキスト削除タイマーのID
+        var translationDeleteTimerId = null;  // 翻訳テキスト削除タイマーのID
+        var isSpeechTextCleared = false;  // 音声認識テキストが削除済みかどうかのフラグ
+        
+        // 独立したプログレスバー管理
+        var speechProgressUpdateIntervalId = null;  // 音声認識プログレスバー更新用インターバルID
+        var speechTimerStartTime = null;  // 音声認識タイマー開始時刻
+        var speechTimerDuration = null;   // 音声認識タイマー継続時間
+        
+        var translationProgressUpdateIntervalId = null;  // 翻訳プログレスバー更新用インターバルID
+        var translationTimerStartTime = null;  // 翻訳タイマー開始時刻
+        var translationTimerDuration = null;   // 翻訳タイマー継続時間
+
+        // 音声認識テキストを全角スペースで置き換える関数
+        function clearSpeechText() {
+            document.getElementById('speech_text-imb').innerHTML = '　'; // 全角スペース
+            document.getElementById('speech_text-bg').innerHTML = '　';
+            document.getElementById('speech_text-fg').innerHTML = '　';
+            isSpeechTextCleared = true;  // 削除済みフラグを立てる
+            console.log('音声認識テキストをクリア（全角スペース置換）');
+        }
+
+        // 翻訳テキストを全角スペースで置き換える関数
+        function clearTranslationText() {
+            if(arg_trans != null) {
+                document.getElementById('trans_text-imb').innerHTML = '　';
+                document.getElementById('trans_text-bg').innerHTML = '　';
+                document.getElementById('trans_text-fg').innerHTML = '　';
+            }
+            if(arg_trans2 != null) {
+                document.getElementById('trans_text2-imb').innerHTML = '　';
+                document.getElementById('trans_text2-bg').innerHTML = '　';
+                document.getElementById('trans_text2-fg').innerHTML = '　';
+            }
+            if(arg_trans3 != null) {
+                document.getElementById('trans_text3-imb').innerHTML = '　';
+                document.getElementById('trans_text3-bg').innerHTML = '　';
+                document.getElementById('trans_text3-fg').innerHTML = '　';
+            }
+            console.log('翻訳テキストをクリア（全角スペース置換）');
+        }
+
+        // 音声認識テキスト削除タイマーをリセットする関数
+        function resetSpeechTimer() {
+            if (speechDeleteTimerId !== null) {
+                console.log('🔄 音声認識テキスト削除タイマーをリセット (ID:' + speechDeleteTimerId + ')');
+                clearTimeout(speechDeleteTimerId);
+                speechDeleteTimerId = null;
+            } else {
+                console.log('⚪ 音声認識タイマーリセット要求（タイマーなし）');
+            }
+            // 音声認識プログレスバーのみリセット
+            if (speechProgressUpdateIntervalId !== null) {
+                clearInterval(speechProgressUpdateIntervalId);
+                speechProgressUpdateIntervalId = null;
+            }
+            updateTimerProgressBar(0, '🎤待機', 'linear-gradient(90deg, #FF6B6B 0%, #FFA07A 50%, #FFE4E1 100%)', 'speech');
+        }
+
+        // 翻訳テキスト削除タイマーをリセットする関数
+        function resetTranslationTimer() {
+            if (translationDeleteTimerId !== null) {
+                console.log('🔄 翻訳テキスト削除タイマーをリセット (ID:' + translationDeleteTimerId + ')');
+                clearTimeout(translationDeleteTimerId);
+                translationDeleteTimerId = null;
+            }
+            // 翻訳プログレスバーのみリセット
+            if (translationProgressUpdateIntervalId !== null) {
+                clearInterval(translationProgressUpdateIntervalId);
+                translationProgressUpdateIntervalId = null;
+            }
+            updateTimerProgressBar(0, '🌐待機', 'linear-gradient(90deg, #2196F3 0%, #64B5F6 50%, #BBDEFB 100%)', 'translation');
+        }
+
+        // 音声認識テキスト削除タイマーを開始する関数
+        function startSpeechDeleteTimer() {
+            resetSpeechTimer(); // 既存のタイマーをクリア
+            
+            if (timer != null && timer !== '') {
+                var duration = parseInt(timer);
+                
+                if (isNaN(duration) || duration <= 0) {
+                    console.log('❌ 音声認識タイマー開始失敗: 無効な時間設定:', timer);
+                    return;
+                }
+                
+                speechDeleteTimerId = setTimeout(function() {
+                    console.log('⏰ 音声認識タイマー満了 - テキストをクリア (ID:' + speechDeleteTimerId + ')');
+                    clearSpeechText();
+                    speechDeleteTimerId = null;
+                    updateTimerProgressBar(0, '🎤完了', '#4CAF50', 'speech');
+                    setTimeout(function() {
+                        updateTimerProgressBar(0, '🎤待機', 'linear-gradient(90deg, #FF6B6B 0%, #FFA07A 50%, #FFE4E1 100%)', 'speech');
+                    }, 1000);
+                }, duration);
+                
+                console.log('🎤⏱️ 音声認識テキスト削除タイマー開始:', duration + 'ms', '(ID:' + speechDeleteTimerId + ')');
+                
+                // プログレスバーのカウントダウン開始
+                startProgressBarCountdown(duration, 'speech');
+            } else {
+                console.log('❌ 音声認識タイマー開始失敗: timer設定なし (timer=' + timer + ')');
+            }
+        }
+
+        // 翻訳テキスト削除タイマーを開始する関数
+        function startTranslationDeleteTimer() {
+            resetTranslationTimer(); // 既存のタイマーをクリア
+            
+            if (timer != null && timer !== '') {
+                var duration = parseInt(timer);
+                
+                translationDeleteTimerId = setTimeout(function() {
+                    console.log('翻訳タイマー満了 - テキストをクリア');
+                    clearTranslationText();
+                    translationDeleteTimerId = null;
+                }, duration);
+                
+                console.log('🌐⏱️ 翻訳テキスト削除タイマー開始:', timer + 'ms');
+                
+                // 翻訳タイマーの場合はプログレスバーを青色で表示
+                startProgressBarCountdown(duration, 'translation');
+            }
+        }
+
+        // 翻訳ステータス更新関数
+        function updateTranslationStatus(status, color) {
+            try {
+                if (window.parent && window.parent.document) {
+                    var statusElement = window.parent.document.getElementById('translationStatus');
+                    if (statusElement) {
+                        statusElement.innerHTML = status;
+                        statusElement.style.color = color || '#666';
+                    }
+                }
+            } catch (error) {
+                console.log('翻訳ステータス更新エラー:', error);
+            }
+        }
+
+        // タイマープログレスバー更新関数（個別バー対応）
+        function updateTimerProgressBar(percent, text, color, type) {
+            try {
+                if (window.parent && window.parent.document) {
+                    var barId = type === 'translation' ? 'transTimerProgressBar' : 'speechTimerProgressBar';
+                    var textId = type === 'translation' ? 'transTimerProgressText' : 'speechTimerProgressText';
+                    
+                    var progressBar = window.parent.document.getElementById(barId);
+                    var progressText = window.parent.document.getElementById(textId);
+                    
+                    if (progressBar && progressText) {
+                        progressBar.style.width = percent + '%';
+                        progressText.innerHTML = text;
+                        
+                        if (color) {
+                            progressBar.style.background = color;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('プログレスバー更新エラー:', error);
+            }
+        }
+
+        // プログレスバーのカウントダウンアニメーションを開始（独立版）
+        function startProgressBarCountdown(duration, type) {
+            var intervalId;
+            var startTime;
+            var timerDuration;
+            
+            if (type === 'translation') {
+                // 翻訳用プログレスバーの既存更新を停止
+                if (translationProgressUpdateIntervalId !== null) {
+                    clearInterval(translationProgressUpdateIntervalId);
+                    translationProgressUpdateIntervalId = null;
+                }
+                translationTimerStartTime = Date.now();
+                translationTimerDuration = duration;
+                startTime = translationTimerStartTime;
+                timerDuration = translationTimerDuration;
+            } else {
+                // 音声認識用プログレスバーの既存更新を停止
+                if (speechProgressUpdateIntervalId !== null) {
+                    clearInterval(speechProgressUpdateIntervalId);
+                    speechProgressUpdateIntervalId = null;
+                }
+                speechTimerStartTime = Date.now();
+                speechTimerDuration = duration;
+                startTime = speechTimerStartTime;
+                timerDuration = speechTimerDuration;
+            }
+
+            // タイマー種類に応じて色を決定
+            var colorGradient;
+            var typeText = '';
+            if (type === 'translation') {
+                colorGradient = 'linear-gradient(90deg, #2196F3 0%, #64B5F6 50%, #BBDEFB 100%)';
+                typeText = '🌐';
+            } else {
+                colorGradient = 'linear-gradient(90deg, #FF6B6B 0%, #FFA07A 50%, #FFE4E1 100%)';
+                typeText = '🎤';
+            }
+
+            // プログレスバー初期化
+            var initialSeconds = Math.round(duration / 1000);
+            updateTimerProgressBar(100, typeText + ' ' + initialSeconds + 's', colorGradient, type);
+
+            // 50ms毎にプログレスバーを更新（より滑らか）
+            intervalId = setInterval(function() {
+                var elapsed = Date.now() - startTime;
+                var remaining = Math.max(0, timerDuration - elapsed);
+                var percent = (remaining / timerDuration) * 100;
+                var remainingSeconds = Math.ceil(remaining / 1000);
+
+                if (remaining > 0) {
+                    // 残り時間に応じて色を変化
+                    var urgencyLevel = remaining / timerDuration;
+                    var displayColor;
+                    if (urgencyLevel > 0.5) {
+                        displayColor = colorGradient;
+                    } else if (urgencyLevel > 0.2) {
+                        displayColor = 'linear-gradient(90deg, #FFA726 0%, #FFB74D 50%, #FFE0B2 100%)';
+                    } else {
+                        displayColor = 'linear-gradient(90deg, #F44336 0%, #EF5350 50%, #FFCDD2 100%)';
+                    }
+                    
+                    updateTimerProgressBar(percent, typeText + ' ' + remainingSeconds + 's', displayColor, type);
+                } else {
+                    updateTimerProgressBar(0, typeText + ' 削除!', '#D32F2F', type);
+                    clearInterval(intervalId);
+                    
+                    // インターバルIDをクリア
+                    if (type === 'translation') {
+                        translationProgressUpdateIntervalId = null;
+                    } else {
+                        speechProgressUpdateIntervalId = null;
+                    }
+                }
+            }, 50);
+            
+            // インターバルIDを保存
+            if (type === 'translation') {
+                translationProgressUpdateIntervalId = intervalId;
+            } else {
+                speechProgressUpdateIntervalId = intervalId;
+            }
+        }
+
+
+
+        function shouldClearText() {
+            // Check if each process is enabled and if it's complete
+            var recogComplete = isSpeechRecognitionComplete;
+            var trans1Complete = arg_trans != null ? isTextTranslation1Complete : true;
+            var trans2Complete = arg_trans2 != null ? isTextTranslation2Complete : true;
+            var trans3Complete = arg_trans3 != null ? isTextTranslation3Complete : true;
+
+            return recogComplete && trans1Complete && trans2Complete && trans3Complete;
+        }
+
+
+        stop_recog = function() {
+            console.log("stop by short pause!");
+            recognition.stop();
+            // ショートポーズで停止した場合はタイマー開始しない（onspeechend/onsoundendで開始済み）
+        };
+
+        ///////////////////////////////////////////////////////////
+        // 各種イベントへの対応 --------------------------------- 
+        // 音声・認識 開始
+        recognition.onstart = () => {
+            console.log("onstart cnt:" + String(my_count));
+            recognitionState = 'running';
+            // 音声認識開始時はタイマーリセットしない（実際の音声検出時にリセット）
+        }
+        recognition.onaudiostart = () => {
+            console.log("onaudiostart cnt:" + String(my_count));
+        }
+        recognition.onsoundstart = () => {
+            console.log("🔊 onsoundstart cnt:" + String(my_count));
+            // 音声検出開始時に音声タイマーリセット
+            resetSpeechTimer();
+        }
+        recognition.onspeechstart = () => {
+            console.log("🗣️ onspeechstart cnt:" + String(my_count));
+            // 発話開始時に音声タイマーリセット
+            resetSpeechTimer();
+        }
+        
+        // 音声・認識 終了
+        recognition.onspeechend = () => {
+            console.log("🔇 onspeechend cnt:" + String(my_count));
+            // 発話終了時はタイマー開始しない（最終結果取得時に開始）
+        }
+        recognition.onsoundend = () => {
+            console.log("🔕 onsoundend cnt:" + String(my_count));
+            // 音声検出終了時はタイマー開始しない（最終結果取得時に開始）
+        }
+        recognition.onaudioend = () => {
+            console.log("onaudioend cnt:" + String(my_count));
+        }
+        recognition.onend = () => {
+            console.log("onend cnt:" + String(my_count));
+            recognitionState = 'stopped';
+            
+            // 音声認識終了時はタイマー開始しない（onspeechend/onsoundendで既に開始済み）
+            
+            // フラグをリセット
+            isSpeechRecognitionComplete = false;
+            isTextTranslation1Complete = false;
+            isTextTranslation2Complete = false;
+            isTextTranslation3Complete = false;
+            
+            // 安全に再起動
+            setTimeout(() => {
+                my_count = count;
+                count = count + 1;
+                safeRestartRecognition('正常終了');
+            }, 100);
+        }
+
+        // エラー等
+        recognition.onerror = (event) => {
+            console.log("onerror cnt:" + String(my_count) + " error:" + event.error);
+            recognitionState = 'stopped';
+            
+            // エラーの種類によって処理を分ける
+            if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+                console.log('マイクのアクセス許可が必要です');
+                return; // 再起動しない
+            }
+            
+            // その他のエラーは安全に再起動
+            safeRestartRecognition(`エラー: ${event.error}`);
+        }
+        recognition.onnomatch = () => {
+            console.log("onnomatch cnt:" + String(my_count));
+            // nomatchの場合は停止せず継続
+        }
+
+
+        // 言語設定 ----------------------------
+        if (arg_recog != null) {
+            recognition.lang = arg_recog;
+            trans_sourcelang = recognition.lang;
+            console.log('音声認識言語設定完了:', recognition.lang, 'trans_sourcelang:', trans_sourcelang);
+        }
+        if (arg_trans != null) {
+            trans_destlang = arg_trans;
+        }
+        if (arg_trans2 != null) {
+            trans2_destlang = arg_trans2;
+        }
+        if (arg_trans3 != null) {
+            trans3_destlang = arg_trans3;
+        }
+
+        // 認識結果が返ってきたとき ------------------
+        recognition.onresult = function(event) {
+            var results = event.results;
+            
+            // 最新の結果を構築（確定結果 + 途中結果）
+            var finalText = '';
+            var interimText = '';
+            var latestConfidence = 0;
+            
+            for (var i = 0; i < results.length; i++) {
+                var transcript = results[i][0].transcript;
+                var confidence = results[i][0].confidence || 0;
+                
+                if (results[i].isFinal) {
+                    finalText += transcript;
+                    if (confidence > 0) {
+                        latestConfidence = confidence;
+                    }
+                } else {
+                    interimText += transcript;
+                }
+            }
+            
+            // フィルタリングを適用
+            var filteredFinalText = applyContentFilter(finalText);
+            var filteredInterimText = applyContentFilter(interimText);
+            
+            // 表示用テキストを構築（フィルタリング済み確定部分 + フィルタリング済み途中部分）
+            var displayText = filteredFinalText + filteredInterimText;
+            var recog_text = displayText;  // 後続処理との互換性のため
+
+
+                // 最新の結果に最終結果が含まれているかチェック
+                var hasNewFinal = false;
+                for (var j = event.resultIndex; j < results.length; j++) {
+                    if (results[j].isFinal) {
+                        hasNewFinal = true;
+                        break;
+                    }
+                }
+                
+                // #################################################################
+                // 認識最終結果が来たら ###############################################
+                if (hasNewFinal)
+                {
+                    // 最終結果取得時に音声認識タイマー開始（発話終了とみなす）
+                    console.log('🎤⚙️ 最終結果取得 - 音声認識タイマー開始 (テキスト:"' + finalText + '")');
+                    
+                    // 最終結果が空でない場合のみタイマー開始
+                    if (finalText && finalText.trim() !== '') {
+                        startSpeechDeleteTimer();
+                        isSpeechTextCleared = false;  // 新しいテキストが表示されたのでフラグをリセット
+                    } else {
+                        console.log('⚠️ 最終結果が空のためタイマー開始をスキップ');
+                    }
+                    // 認識結果を表示する（フィルタリング済み） ---------------------
+                    var displayTextWithConfidence = filteredFinalText;
+                    if (arg_showConfidence === 'true' && latestConfidence > 0) {
+                        displayTextWithConfidence += ` (信頼度: ${Math.round(latestConfidence * 100)}%)`;
+                    }
+                    document.getElementById('speech_text-imb').innerHTML = displayTextWithConfidence;
+                    document.getElementById('speech_text-bg').innerHTML = displayTextWithConfidence;
+                    document.getElementById('speech_text-fg').innerHTML = displayTextWithConfidence;
+                    isSpeechRecognitionComplete = true; // フラグを更新
+                    
+                    // Chrome翻訃窓にテキストを送信
+                    if (window.parent && window.parent !== window) {
+                        // iframe内から親ウィンドウに送信
+                        window.parent.postMessage({
+                            type: 'speechText',
+                            text: filteredFinalText
+                        }, '*');
+                        
+                        // Chrome翻訳窓が開いているか確認
+                        window.parent.postMessage({
+                            type: 'checkChromeTranslation'
+                        }, '*');
+                    }
+                    
+                    // 翻訳処理用に最終確定テキストのみを使用（フィルタリング済み）
+                    recog_text = filteredFinalText;
+                    lastFinalText = filteredFinalText;  // 表示用はフィルタリング済み
+
+
+                    // 棒読みちゃんにコメントを送信する（フィルタリング済み）
+                    if(bouyomi == "true") {
+                        let bouyomiChanClient = new BouyomiChanClient();
+                        bouyomiChanClient.talk(recog_text);
+                    }
+
+                    // 翻訳処理フラグ（重複実行を防ぐ）
+                    let translationProcessed = false;
+                    
+                    // 選択された翻訳方法に基づいて翻訳処理を実行
+                    if (selectedTranslationMethod === 'chrome' && chromeTranslationReady) {
+                        // 少なくとも1つの翻訳言語が設定されているか確認
+                        if (arg_trans != null || arg_trans2 != null || arg_trans3 != null) {
+                            translationProcessed = true; // Chrome翻訳を実行したことを記録
+                            
+                            // 翻訳開始ステータス（Chrome）
+                            var activeTranslations = [];
+                            if(arg_trans != null) activeTranslations.push('1');
+                            if(arg_trans2 != null) activeTranslations.push('2');
+                            if(arg_trans3 != null) activeTranslations.push('3');
+                            if(activeTranslations.length > 0) {
+                                updateTranslationStatus('Chrome翻訳中(' + activeTranslations.join(',') + ')', '#4CAF50');
+                            }
+                            
+                            // ソース言語を一度だけ取得
+                            const sourceLang = window.chromeTranslator.normalizeLanguageCode(trans_sourcelang);
+                            
+                            // 翻訳1言語目の処理
+                            if (arg_trans != null) {
+                                const targetLang = window.chromeTranslator.normalizeLanguageCode(arg_trans);
+                                
+                                // 音声認識言語と翻訳言語が同じ場合はスキップ
+                                if (sourceLang === targetLang) {
+                                    // 元のテキストをそのまま表示
+                                    const filteredText = applyTranslationFilter(recog_text, 1);
+                                    document.getElementById('trans_text-imb').innerHTML = filteredText;
+                                    document.getElementById('trans_text-bg').innerHTML = filteredText;
+                                    document.getElementById('trans_text-fg').innerHTML = filteredText;
+                                    isTextTranslation1Complete = true;
+                                    startTranslationDeleteTimer();
+                                } else {
+                                    window.chromeTranslator.translate(recog_text, sourceLang, targetLang)
+                                        .then(translatedText => {
+                                            // 翻訳結果を表示
+                                            const filteredText = applyTranslationFilter(translatedText, 1);
+                                            document.getElementById('trans_text-imb').innerHTML = filteredText;
+                                            document.getElementById('trans_text-bg').innerHTML = filteredText;
+                                            document.getElementById('trans_text-fg').innerHTML = filteredText;
+                                            isTextTranslation1Complete = true;
+                                            
+                                            updateTranslationStatus('Chrome翻訳完了', '#4CAF50');
+                                            startTranslationDeleteTimer();
+                                        })
+                                        .catch(error => {
+                                            console.error('Chrome AI 翻訳エラー:', error);
+                                            updateTranslationStatus('Chrome翻訳エラー', '#ff0000');
+                                            // フォールバックとしてGAS APIを使用
+                                            translationProcessed = false; // エラー時は翻訳未処理として扱う
+                                        });
+                                }
+                            }
+                            
+                            // 翻訳2言語目の処理
+                            if (arg_trans2 != null) {
+                                const targetLang2 = window.chromeTranslator.normalizeLanguageCode(arg_trans2);
+                                
+                                // 音声認識言語と翻訳言語が同じ場合はスキップ
+                                if (sourceLang === targetLang2) {
+                                    const filteredText2 = applyTranslationFilter(recog_text, 2);
+                                    document.getElementById('trans_text2-imb').innerHTML = filteredText2;
+                                    document.getElementById('trans_text2-bg').innerHTML = filteredText2;
+                                    document.getElementById('trans_text2-fg').innerHTML = filteredText2;
+                                    isTextTranslation2Complete = true;
+                                    startTranslationDeleteTimer();
+                                } else {
+                                    window.chromeTranslator.canTranslate(sourceLang, targetLang2).then(canTranslate2 => {
+                                        if (canTranslate2) {
+                                            return window.chromeTranslator.translate(recog_text, sourceLang, targetLang2);
+                                        }
+                                    }).then(translatedText2 => {
+                                        if (translatedText2) {
+                                            const filteredText2 = applyTranslationFilter(translatedText2, 2);
+                                            document.getElementById('trans_text2-imb').innerHTML = filteredText2;
+                                            document.getElementById('trans_text2-bg').innerHTML = filteredText2;
+                                            document.getElementById('trans_text2-fg').innerHTML = filteredText2;
+                                            isTextTranslation2Complete = true;
+                                            startTranslationDeleteTimer();
+                                        }
+                                    }).catch(error => {
+                                        console.error('Chrome Translation 翻訳2エラー:', error);
+                                    });
+                                }
+                            }
+                            
+                            // 翻訳3言語目の処理
+                            if (arg_trans3 != null) {
+                                const targetLang3 = window.chromeTranslator.normalizeLanguageCode(arg_trans3);
+                                
+                                // 音声認識言語と翻訳言語が同じ場合はスキップ
+                                if (sourceLang === targetLang3) {
+                                    const filteredText3 = applyTranslationFilter(recog_text, 3);
+                                    document.getElementById('trans_text3-imb').innerHTML = filteredText3;
+                                    document.getElementById('trans_text3-bg').innerHTML = filteredText3;
+                                    document.getElementById('trans_text3-fg').innerHTML = filteredText3;
+                                    isTextTranslation3Complete = true;
+                                    startTranslationDeleteTimer();
+                                } else {
+                                    window.chromeTranslator.canTranslate(sourceLang, targetLang3).then(canTranslate3 => {
+                                        if (canTranslate3) {
+                                            return window.chromeTranslator.translate(recog_text, sourceLang, targetLang3);
+                                        }
+                                    }).then(translatedText3 => {
+                                        if (translatedText3) {
+                                            const filteredText3 = applyTranslationFilter(translatedText3, 3);
+                                            document.getElementById('trans_text3-imb').innerHTML = filteredText3;
+                                            document.getElementById('trans_text3-bg').innerHTML = filteredText3;
+                                            document.getElementById('trans_text3-fg').innerHTML = filteredText3;
+                                            isTextTranslation3Complete = true;
+                                            startTranslationDeleteTimer();
+                                        }
+                                    }).catch(error => {
+                                        console.error('Chrome Translation 翻訳3エラー:', error);
+                                    });
+                                }
+                            }
+                        }  // Chrome翻訳の翻訳言語設定チェックの終了
+                    }  // Chrome翻訳処理の終了
+                    // GAS API翻訳が選択されている場合、またはChrome翻訳でエラーが発生した場合
+                    else if((selectedTranslationMethod === 'gas' || !translationProcessed) && gas_key != null){
+                        
+                        // 翻訳開始ステータス（GAS）
+                        var activeTranslations = [];
+                        if(arg_trans != null) activeTranslations.push('1');
+                        if(arg_trans2 != null) activeTranslations.push('2');
+                        if(arg_trans3 != null) activeTranslations.push('3');
+                        if(activeTranslations.length > 0) {
+                            updateTranslationStatus('GAS翻訳中(' + activeTranslations.join(',') + ')', '#0066cc');
+                        }
+
+                        // 翻訳1言語目
+                        if(arg_trans != null){
+                            const processedText = applyCustomDictionary(recog_text);
+                            const sourceLang = getTranslationLanguageId(trans_sourcelang);
+                            
+                            // 音声認識言語と翻訳言語が同じ場合はAPIを呼ばずにそのまま表示
+                            if(sourceLang === trans_destlang) {
+                                console.log('GAS API: 音声認識言語と翻訳言語が同じため、翻訳をスキップします');
+                                const filteredText = applyTranslationFilter(recog_text, 1);
+                                document.getElementById('trans_text-imb').innerHTML = filteredText;
+                                document.getElementById('trans_text-bg').innerHTML = filteredText;
+                                document.getElementById('trans_text-fg').innerHTML = filteredText;
+                                isTextTranslation1Complete = true;
+                                startTranslationDeleteTimer();
+                            } else {
+                                query = TRANS_URL + '?text=' + encodeURIComponent(processedText) + '&source=' + sourceLang + '&target=' + trans_destlang;
+                                request.open('GET', query, true);
+
+                            request.onreadystatechange = function(){
+                                if (request.readyState === 4 && request.status === 200){
+
+                                    var responseText1 = request.responseText;
+
+                                    // JSON形式であるかを確認し、JSONであればtranslatedTextを抽出
+                                    try {
+                                        var jsonResponse = JSON.parse(responseText1);
+                                        if (jsonResponse.translatedText) {
+                                            responseText1 = jsonResponse.translatedText;
+                                            var translatedCount = jsonResponse.translatedCount;
+                                            document.getElementById('translationCount').innerHTML = translatedCount;
+                                            console.log('translatedCount(1):'+translatedCount);
+                                        }
+                                    } catch (e) {
+                                        // JSON形式でなければ何もしない
+                                    }
+
+                                    // 音声認識テキストが削除済みでない場合のみ再表示
+                                    if (!isSpeechTextCleared) {
+                                        document.getElementById('speech_text-imb').innerHTML = lastFinalText;
+                                        document.getElementById('speech_text-bg').innerHTML = lastFinalText;
+                                        document.getElementById('speech_text-fg').innerHTML = lastFinalText;
+                                    }
+                                    
+                                    // 翻訳結果1にフィルタリングを適用
+                                    var filteredResponseText1 = applyTranslationFilter(responseText1, 1);
+                                    document.getElementById('trans_text-imb').innerHTML =  filteredResponseText1;
+                                    document.getElementById('trans_text-bg').innerHTML =  filteredResponseText1;
+                                    document.getElementById('trans_text-fg').innerHTML =  filteredResponseText1;
+                                    isTextTranslation1Complete = true; // フラグを更新
+                                    
+                                    // 翻訳1完了時に翻訳タイマー開始
+                                    startTranslationDeleteTimer();
+                                    
+                                    // 翻訳完了チェック
+                                    var completedTranslations = 0;
+                                    var totalTranslations = 0;
+                                    if(arg_trans != null) { totalTranslations++; if(isTextTranslation1Complete) completedTranslations++; }
+                                    if(arg_trans2 != null) { totalTranslations++; if(isTextTranslation2Complete) completedTranslations++; }
+                                    if(arg_trans3 != null) { totalTranslations++; if(isTextTranslation3Complete) completedTranslations++; }
+                                    
+                                    if(completedTranslations === totalTranslations) {
+                                        updateTranslationStatus('翻訳完了', '#00aa00');
+                                    }
+                                } else if (request.readyState === 4) {
+                                    // エラー時の処理
+                                    if (request.status === 429) {
+                                        updateTranslationStatus('API上限エラー', '#cc0000');
+                                    } else if (request.status === 403) {
+                                        updateTranslationStatus('API認証エラー', '#cc0000');
+                                    } else {
+                                        updateTranslationStatus('翻訳エラー(HTTP:' + request.status + ')', '#cc0000');
+                                    }
+                                }
+                            }
+                            request.send(null);
+                            }
+                        }
+
+                        // 翻訳2言語目
+                        if(arg_trans2 != null){
+                            const processedText2 = applyCustomDictionary(recog_text);
+                            const sourceLang2 = getTranslationLanguageId(trans_sourcelang);
+                            
+                            // 音声認識言語と翻訳言語が同じ場合はAPIを呼ばずにそのまま表示
+                            if(sourceLang2 === trans2_destlang) {
+                                console.log('GAS API: 音声認識言語と翻訳言語2が同じため、翻訳をスキップします');
+                                const filteredText2 = applyTranslationFilter(recog_text, 2);
+                                document.getElementById('trans_text2-imb').innerHTML = filteredText2;
+                                document.getElementById('trans_text2-bg').innerHTML = filteredText2;
+                                document.getElementById('trans_text2-fg').innerHTML = filteredText2;
+                                isTextTranslation2Complete = true;
+                                startTranslationDeleteTimer();
+                            } else {
+                                query2 = TRANS_URL + '?text=' + encodeURIComponent(processedText2) + '&source=' + sourceLang2 + '&target=' + trans2_destlang;
+                            request2.open('GET', query2, true);
+
+                            request2.onreadystatechange = function(){
+                                if (request2.readyState === 4 && request2.status === 200){
+
+                                    var responseText2 = request2.responseText;
+
+                                    // JSON形式であるかを確認し、JSONであればtranslatedTextを抽出
+                                    try {
+                                        var jsonResponse = JSON.parse(responseText2);
+                                        if (jsonResponse.translatedText) {
+                                            responseText2 = jsonResponse.translatedText;
+                                            document.getElementById('translationCount').innerHTML = jsonResponse.translatedCount;
+                                            var translatedCount2 = jsonResponse.translatedCount;
+                                            document.getElementById('translationCount').innerHTML = translatedCount2;
+                                            console.log('translatedCount(2):'+translatedCount2);
+                                        }
+                                    } catch (e) {
+                                        // JSON形式でなければ何もしない
+                                    }
+
+                                    // 音声認識テキストが削除済みでない場合のみ再表示
+                                    if (!isSpeechTextCleared) {
+                                        document.getElementById('speech_text-imb').innerHTML = lastFinalText;
+                                        document.getElementById('speech_text-bg').innerHTML = lastFinalText;
+                                        document.getElementById('speech_text-fg').innerHTML = lastFinalText;
+                                    }
+                                    
+                                    // 翻訳結果2にフィルタリングを適用
+                                    var filteredResponseText2 = applyTranslationFilter(responseText2, 2);
+                                    document.getElementById('trans_text2-imb').innerHTML = filteredResponseText2;
+                                    document.getElementById('trans_text2-bg').innerHTML = filteredResponseText2;
+                                    document.getElementById('trans_text2-fg').innerHTML = filteredResponseText2;
+                                    isTextTranslation2Complete = true; // フラグを更新
+                                    
+                                    // 翻訳2完了時に翻訳タイマー再開始
+                                    startTranslationDeleteTimer();
+                                    
+                                    // 翻訳完了チェック
+                                    var completedTranslations = 0;
+                                    var totalTranslations = 0;
+                                    if(arg_trans != null) { totalTranslations++; if(isTextTranslation1Complete) completedTranslations++; }
+                                    if(arg_trans2 != null) { totalTranslations++; if(isTextTranslation2Complete) completedTranslations++; }
+                                    if(arg_trans3 != null) { totalTranslations++; if(isTextTranslation3Complete) completedTranslations++; }
+                                    
+                                    if(completedTranslations === totalTranslations) {
+                                        updateTranslationStatus('翻訳完了', '#00aa00');
+                                    }
+                                } else if (request2.readyState === 4) {
+                                    // エラー時の処理
+                                    if (request2.status === 429) {
+                                        updateTranslationStatus('API上限エラー', '#cc0000');
+                                    } else if (request2.status === 403) {
+                                        updateTranslationStatus('API認証エラー', '#cc0000');
+                                    } else {
+                                        updateTranslationStatus('翻訳エラー(HTTP:' + request2.status + ')', '#cc0000');
+                                    }
+                                }
+                            }
+                            request2.send(null);
+                            }
+                        }
+
+                        // 翻訳3言語目
+                        if(arg_trans3 != null){
+                            const processedText3 = applyCustomDictionary(recog_text);
+                            const sourceLang3 = getTranslationLanguageId(trans_sourcelang);
+                            
+                            // 音声認識言語と翻訳言語が同じ場合はAPIを呼ばずにそのまま表示
+                            if(sourceLang3 === trans3_destlang) {
+                                console.log('GAS API: 音声認識言語と翻訳言語3が同じため、翻訳をスキップします');
+                                const filteredText3 = applyTranslationFilter(recog_text, 3);
+                                document.getElementById('trans_text3-imb').innerHTML = filteredText3;
+                                document.getElementById('trans_text3-bg').innerHTML = filteredText3;
+                                document.getElementById('trans_text3-fg').innerHTML = filteredText3;
+                                isTextTranslation3Complete = true;
+                                startTranslationDeleteTimer();
+                            } else {
+                                query3 = TRANS_URL + '?text=' + encodeURIComponent(processedText3) + '&source=' + sourceLang3 + '&target=' + trans3_destlang;
+                            request3.open('GET', query3, true);
+
+                            request3.onreadystatechange = function(){
+                                if (request3.readyState === 4 && request3.status === 200){
+
+                                    var responseText3 = request3.responseText;
+
+                                    // JSON形式であるかを確認し、JSONであればtranslatedTextを抽出
+                                    try {
+                                        var jsonResponse = JSON.parse(responseText3);
+                                        if (jsonResponse.translatedText) {
+                                            responseText3 = jsonResponse.translatedText;
+                                            document.getElementById('translationCount').innerHTML = jsonResponse.translatedCount;
+                                            var translatedCount3 = jsonResponse.translatedCount;
+                                            document.getElementById('translationCount').innerHTML = translatedCount3;
+                                            console.log('translatedCount(3):'+translatedCount3);
+                                        }
+                                    } catch (e) {
+                                        // JSON形式でなければ何もしない
+                                    }
+
+                                    // 音声認識テキストが削除済みでない場合のみ再表示
+                                    if (!isSpeechTextCleared) {
+                                        document.getElementById('speech_text-imb').innerHTML = lastFinalText;
+                                        document.getElementById('speech_text-bg').innerHTML = lastFinalText;
+                                        document.getElementById('speech_text-fg').innerHTML = lastFinalText;
+                                    }
+                                    
+                                    // 翻訳結果3にフィルタリングを適用
+                                    var filteredResponseText3 = applyTranslationFilter(responseText3, 3);
+                                    document.getElementById('trans_text3-imb').innerHTML = filteredResponseText3;
+                                    document.getElementById('trans_text3-bg').innerHTML = filteredResponseText3;
+                                    document.getElementById('trans_text3-fg').innerHTML = filteredResponseText3;
+                                    isTextTranslation3Complete = true; // フラグを更新
+                                    
+                                    // 翻訳3完了時に翻訳タイマー再開始
+                                    startTranslationDeleteTimer();
+                                    
+                                    // 翻訳完了チェック
+                                    var completedTranslations = 0;
+                                    var totalTranslations = 0;
+                                    if(arg_trans != null) { totalTranslations++; if(isTextTranslation1Complete) completedTranslations++; }
+                                    if(arg_trans2 != null) { totalTranslations++; if(isTextTranslation2Complete) completedTranslations++; }
+                                    if(arg_trans3 != null) { totalTranslations++; if(isTextTranslation3Complete) completedTranslations++; }
+                                    
+                                    if(completedTranslations === totalTranslations) {
+                                        updateTranslationStatus('翻訳完了', '#00aa00');
+                                    }
+                                } else if (request3.readyState === 4) {
+                                    // エラー時の処理
+                                    if (request3.status === 429) {
+                                        updateTranslationStatus('API上限エラー', '#cc0000');
+                                    } else if (request3.status === 403) {
+                                        updateTranslationStatus('API認証エラー', '#cc0000');
+                                    } else {
+                                        updateTranslationStatus('翻訳エラー(HTTP:' + request3.status + ')', '#cc0000');
+                                    }
+                                }
+                            }
+                            request3.send(null);
+                            }
+                        }
+
+                    } else {
+                        document.getElementById('speech_text-imb').innerHTML = filteredFinalText;
+                        document.getElementById('speech_text-bg').innerHTML = filteredFinalText;
+                        document.getElementById('speech_text-fg').innerHTML = filteredFinalText;
+                        // API KEYがない場合のステータス
+                        updateTranslationStatus('API KEYなし', '#999');
+                    }
+
+                }
+                // #################################################################
+                // 認識途中結果が来たら ###############################################
+                else
+                {
+                    // 途中結果取得時に音声認識タイマーリセット（音声入力中のため）
+                    console.log('🔄 途中結果取得 - タイマーリセット (テキスト:"' + displayText + '")');
+                    resetSpeechTimer();
+                    // 「ショートポースが来たら，音声認識を強制的に止める」のタイムアウト処理を削除する -------
+                    if(short_pause != null && short_pause !== '') {
+                        clearTimeout(id_stop_recog);
+                        // ショートポーズストップ用タイムアウトを設定
+                        id_stop_recog = setTimeout(stop_recog, parseInt(short_pause));
+                        console.log('ショートポーズタイマー設定:', short_pause + 'ms');
+                    }
+
+                    // 途中結果の表示（フィルタリング済み確定部分 + フィルタリング済み途中部分を明確に区別）
+                    if(displayText !== ""){
+                        var displayHtml = '';
+                        if (filteredFinalText !== '') {
+                            displayHtml += filteredFinalText;
+                        }
+                        if (filteredInterimText !== '') {
+                            displayHtml += ' << ' + filteredInterimText + ' >>';
+                        }
+                        
+                        document.getElementById('speech_text-imb').innerHTML = displayHtml;
+                        document.getElementById('speech_text-bg').innerHTML = displayHtml;
+                        document.getElementById('speech_text-fg').innerHTML = displayHtml;
+                    }
+                }
+            // 単一ループに統合
+        }
+
+
+        // デバッグモード：音声認識を無効化
+        console.log('[DEBUG MODE] 音声認識を無効化しています');
+        
+        // 音声認識を開始しない
+        recognitionState = 'stopped';
+        
+        // 初期ステータス設定
+        if (gas_key != null && gas_key !== '') {
+            updateTranslationStatus('デバッグモード', '#f44336');
+        } else {
+            updateTranslationStatus('デバッグモード（API KEYなし）', '#999');
+        }
+        
+        // シンプルな翻訳テスト関数
+        window.testTranslation = function(text) {
+            console.log('[TEST] 翻訳テスト開始');
+            console.log('[TEST] テキスト:', text);
+            console.log('[TEST] window.chromeTranslator:', window.chromeTranslator);
+            console.log('[TEST] chromeTranslationReady:', chromeTranslationReady);
+            
+            if (!window.chromeTranslator) {
+                console.error('[TEST] window.chromeTranslatorが存在しません');
+                return;
+            }
+            
+            window.chromeTranslator.checkAvailability().then(available => {
+                console.log('[TEST] checkAvailability結果:', available);
+                if (available) {
+                    return window.chromeTranslator.translate(text, 'ja', 'en');
+                } else {
+                    throw new Error('Chrome翻訳APIが利用できません');
+                }
+            }).then(result => {
+                console.log('[TEST] 翻訳成功:', result);
+                document.getElementById('trans_text-imb').innerHTML = result;
+                document.getElementById('trans_text-bg').innerHTML = result;
+                document.getElementById('trans_text-fg').innerHTML = result;
+            }).catch(error => {
+                console.error('[TEST] 翻訳エラー:', error);
+            });
+        };
+        
+        // デバッグ用：親ウィンドウからのメッセージを受信
+        window.addEventListener('message', function(event) {
+            console.log('[DEBUG-MAIN] メッセージ受信:', event.data);
+            
+            if (event.data && event.data.type === 'debugText') {
+                console.log('[DEBUG-MAIN] ===========================================');
+                console.log('[DEBUG-MAIN] debugTextメッセージ処理開始');
+                console.log('[DEBUG-MAIN] テキスト:', event.data.text);
+                
+                // 受信したテキストを音声認識結果として処理
+                const text = event.data.text;
+                
+                // 音声認識の結果として処理（実際の音声認識と同じフローを再現）
+                // グローバル変数の設定
+                var final_text = text;  // 確定テキスト
+                var interim_text = "";  // 途中結果は空
+                var displayText = text;
+                var recog_text = text;
+                
+                // フィルタリング（実際の処理と同じ）
+                var filteredFinalText = applyContentFilter(final_text);
+                var filteredInterimText = "";
+                
+                // 音声認識結果として表示
+                document.getElementById('speech_text-imb').innerHTML = filteredFinalText;
+                document.getElementById('speech_text-bg').innerHTML = filteredFinalText;
+                document.getElementById('speech_text-fg').innerHTML = filteredFinalText;
+                
+                // is_final = true の時の処理（実際の音声認識と同じ）
+                console.log('[DEBUG] 確定結果として処理: is_final = true');
+                
+                // 翻訳タイマーリセット
+                if (typeof resetTranslationTimer === 'function') {
+                    resetTranslationTimer();
+                }
+                
+                // 音声認識テキスト削除タイマー開始
+                if (typeof startSpeechDeleteTimer === 'function') {
+                    startSpeechDeleteTimer();
+                }
+                
+                // Chrome内蔵翻訳で翻訳処理を実行
+                console.log('[DEBUG] Chrome内蔵翻訳を開始します');
+                console.log('[DEBUG] 翻訳元テキスト:', filteredFinalText);
+                console.log('[DEBUG] chromeTranslationReady:', chromeTranslationReady);
+                console.log('[DEBUG] window.chromeTranslator:', window.chromeTranslator);
+                console.log('[DEBUG] typeof window.chromeTranslator:', typeof window.chromeTranslator);
+                
+                // chromeTranslatorが初期化されていない場合は再試行
+                if (window.chromeTranslator && !chromeTranslationReady) {
+                    console.log('[DEBUG] chromeTranslatorは存在するが、未初期化。初期化を試みます。');
+                    initializeChromeTranslator();
+                    // 少し待ってから翻訳を実行
+                    setTimeout(() => {
+                        performTranslation(filteredFinalText);
+                    }, 1000);
+                    return;
+                }
+                
+                // 翻訳を実行する関数
+                function performTranslation(textToTranslate) {
+                    console.log('[DEBUG] performTranslation開始:', textToTranslate);
+                    
+                    // まず翻訳中であることを表示（動作確認）
+                    document.getElementById('trans_text-imb').innerHTML = '[翻訳処理中...]';
+                    document.getElementById('trans_text-bg').innerHTML = '[翻訳処理中...]';
+                    document.getElementById('trans_text-fg').innerHTML = '[翻訳処理中...]';
+                    
+                    // Chrome翻訳APIが利用可能かチェック
+                    if (window.chromeTranslator && chromeTranslationReady) {
+                    console.log('[DEBUG] Chrome翻訳APIが利用可能です');
+                    updateTranslationStatus('Chrome翻訳中...', '#4CAF50');
+                    
+                    // 翻訳元言語と翻訳先言語を設定
+                    const sourceLang = 'ja';  // 日本語
+                    const targetLang = 'en';  // 英語
+                    
+                    console.log('[DEBUG] 翻訳言語設定 - 元:', sourceLang, '先:', targetLang);
+                    
+                    // Chrome内蔵翻訳を実行
+                    window.chromeTranslator.translate(textToTranslate, sourceLang, targetLang)
+                        .then(translatedText => {
+                            console.log('[DEBUG] Chrome翻訳成功:', translatedText);
+                            
+                            // 翻訳結果を表示
+                            const filteredText = applyTranslationFilter(translatedText, 1);
+                            document.getElementById('trans_text-imb').innerHTML = filteredText;
+                            document.getElementById('trans_text-bg').innerHTML = filteredText;
+                            document.getElementById('trans_text-fg').innerHTML = filteredText;
+                            
+                            updateTranslationStatus('Chrome翻訳完了', '#4CAF50');
+                            console.log('[DEBUG] 翻訳結果をDOM要素に設定完了');
+                            
+                            // 翻訳テキスト削除タイマー開始
+                            if (typeof startTranslationDeleteTimer === 'function') {
+                                startTranslationDeleteTimer();
+                            }
+                        })
+                        .catch(error => {
+                            console.error('[DEBUG] Chrome翻訳エラー:', error);
+                            updateTranslationStatus('Chrome翻訳エラー', '#ff0000');
+                            
+                            // エラー時は元のテキストをそのまま表示
+                            document.getElementById('trans_text-imb').innerHTML = '[翻訳エラー]';
+                            document.getElementById('trans_text-bg').innerHTML = '[翻訳エラー]';
+                            document.getElementById('trans_text-fg').innerHTML = '[翻訳エラー]';
+                        });
+                } else {
+                    console.log('[DEBUG] Chrome翻訳APIが利用できません - フォールバック処理を実行');
+                    console.log('[DEBUG] chromeTranslationReady:', chromeTranslationReady);
+                    console.log('[DEBUG] window.chromeTranslator:', window.chromeTranslator);
+                    
+                    // デバッグ用：単純な模擬翻訳を実行（動作確認用）
+                    updateTranslationStatus('模擬翻訳実行', '#ffaa00');
+                    
+                    // 簡単な模擬翻訳マッピング
+                    const mockTranslations = {
+                        '今日も配信始めていきます！': 'Let\'s start streaming today!',
+                        'コメントありがとうございます': 'Thank you for your comment',
+                        'この敵強すぎるんだけど！': 'This enemy is too strong!',
+                        'みんな調子はどうですか？': 'How is everyone doing?',
+                        '次はこのゲームやってみます': 'Let\'s try this game next',
+                        'ちょっと休憩入れますね': 'Let\'s take a short break',
+                        '今のプレイすごかったでしょ': 'That play was amazing, right?',
+                        'フォローよろしくお願いします': 'Please follow me',
+                        'スパチャありがとうございます': 'Thank you for the super chat',
+                        'それではまた次回の配信で！': 'See you in the next stream!'
+                    };
+                    
+                    const translatedText = mockTranslations[textToTranslate] || '[Mock Translation: ' + textToTranslate + ']';
+                    
+                    // 模擬翻訳結果を表示
+                    setTimeout(() => {
+                        document.getElementById('trans_text-imb').innerHTML = translatedText;
+                        document.getElementById('trans_text-bg').innerHTML = translatedText;
+                        document.getElementById('trans_text-fg').innerHTML = translatedText;
+                        updateTranslationStatus('模擬翻訳完了', '#00aa00');
+                        console.log('[DEBUG] 模擬翻訳結果を表示:', translatedText);
+                    }, 500);
+                    }
+                }
+                
+                // 翻訳を実行
+                performTranslation(filteredFinalText);
+            }
+        });
+
+    </script> 
+</head>
+ 
+
+
+
+
+
+<body>
+    <!-- デバッグモード表示 -->
+    <div style="position: absolute; top: 0; left: 0; background: red; color: white; padding: 5px; font-size: 12px; z-index: 9999;">
+        DEBUG MODE - main_debug.html
+    </div>
+    
+    <div class="big" id="result_text">
+        <table id="text_table" class="btm_table" style="overflow:hidden;">
+            <tr><td id="tbl_td" align="center" valign='bottom'>
+                <div id="speech_text">
+                    <div class="stroke-single-bg" id="speech_text-bg"></div> 
+                    <div class="stroke-single-fg" id="speech_text-fg"></div>
+                    <div class="stroke-single-imb" id="speech_text-imb"></div> 
+                </div>
+
+                <div id="trans_text">
+                    <div class="stroke-single-bg" id="trans_text-bg"></div>  
+                    <div class="stroke-single-fg" id="trans_text-fg"></div>  
+                    <div class="stroke-single-imb" id="trans_text-imb"></div>  
+                </div>
+
+                <div id="trans_text2">
+                    <div class="stroke-single-bg" id="trans_text2-bg"></div>  
+                    <div class="stroke-single-fg" id="trans_text2-fg"></div>  
+                    <div class="stroke-single-imb" id="trans_text2-imb"></div>  
+                </div>
+
+                <div id="trans_text3">
+                    <div class="stroke-single-bg" id="trans_text3-bg"></div>  
+                    <div class="stroke-single-fg" id="trans_text3-fg"></div>  
+                    <div class="stroke-single-imb" id="trans_text3-imb"></div>  
+                </div>
+            </td></tr>
+        </table>
+    </div>
+
+    <!-- 翻訳回数管理 -->
+    <div id="translationCount" style="display: none;"></div>
+
+</body>
+
+
+
+
+
+
+
+
+
+<!-- ############## 末尾のjavascript ############## -->
+<script type="text/javascript">
+
+// バージョン情報の表示 ---------------------------------
+const SoftwareTitle = "音声認識字幕ちゃん";
+const SoftwareVersion = "2025.9.4 21:12";
+const SoftwareDeveloper = "[開発者：さぁたん ＆ さよなりω/(大学教員)西村良太]"
+
+// Web Speech API使用時のデバイス制限について
+console.log('音声認識: Web Speech APIは既定の音声デバイスのみ使用');
+console.log('デバイスを変更する場合は、ブラウザまたはOSの設定で既定デバイスを変更してください。');
+
+const speech_text_first = "[" + SoftwareTitle + " (Ver:" + SoftwareVersion + ")" + "]";
+document.getElementById('speech_text-bg').innerHTML = speech_text_first;
+document.getElementById('speech_text-fg').innerHTML = speech_text_first;
+document.getElementById('speech_text-imb').innerHTML = speech_text_first;
+
+const trans1_text_first = SoftwareDeveloper;
+document.getElementById('trans_text-bg').innerHTML = trans1_text_first
+document.getElementById('trans_text-fg').innerHTML = trans1_text_first
+document.getElementById('trans_text-imb').innerHTML = trans1_text_first
+
+const trans2_text_first = "[ここに結果表示（翻訳２）]";
+document.getElementById('trans_text2-bg').innerHTML = trans2_text_first;
+document.getElementById('trans_text2-fg').innerHTML = trans2_text_first;
+document.getElementById('trans_text2-imb').innerHTML = trans2_text_first;
+
+const trans3_text_first = "[ここに結果表示（翻訳３）]";
+document.getElementById('trans_text3-bg').innerHTML = trans3_text_first;
+document.getElementById('trans_text3-fg').innerHTML = trans3_text_first;
+document.getElementById('trans_text3-imb').innerHTML = trans3_text_first;
+
+
+// 対象言語を利用しない場合，初期表示文の削除 /////
+if (getParam('trans') == null) {
+    document.getElementById('trans_text-bg').innerHTML = '';
+    document.getElementById('trans_text-fg').innerHTML = '';
+    document.getElementById('trans_text-imb').innerHTML = '';
+}
+if (getParam('trans2') == null) {
+    document.getElementById('trans_text2-bg').innerHTML = '';
+    document.getElementById('trans_text2-fg').innerHTML = '';
+    document.getElementById('trans_text2-imb').innerHTML = '';
+}
+if (getParam('trans3') == null) {
+    document.getElementById('trans_text3-bg').innerHTML = '';
+    document.getElementById('trans_text3-fg').innerHTML = '';
+    document.getElementById('trans_text3-imb').innerHTML = '';
+}
+
+// 表示スタイル変更 ---------------------------------
+if (getParam('bgcolor') != null){
+    document.bgColor = getParam('bgcolor');
+}
+
+if (getParam('v_align') == "top"){
+    document.getElementById("text_table").style.bottom = -1;
+} else if(getParam('v_align') == "bottom"){
+    document.getElementById("text_table").style.bottom = 0;
+}
+
+if (getParam('textAlign') != null){
+    document.getElementById("text_table").style.textAlign = getParam('textAlign');
+    document.getElementById("tbl_td").style.textAlign = getParam('textAlign');
+    if(getParam('textAlign') == "right"){
+        document.getElementById("text_table").style.direction = "rtl";
+        document.getElementById("tbl_td").style.direction = "rtl";
+        document.body.style.direction = "rtl";
+    }
+}
+
+if (getParam('whiteSpace') != null){
+    document.getElementById("text_table").style.whiteSpace = getParam('whiteSpace');
+}
+
+// 高さ合わせ用フォント（色を背景色と同じにする） ############################################
+// 音声認識テキスト -------
+if (getParam('bgcolor') != null){
+    document.getElementById("speech_text-imb").style.webkitTextStrokeColor = getParam('bgcolor');
+    document.getElementById("speech_text-imb").style.color = getParam('bgcolor');
+}
+if (getParam('st_width1') != null){
+    document.getElementById("speech_text-imb").style.webkitTextStrokeWidth = getParam('st_width1') + 'pt';
+}
+
+// 翻訳結果テキスト -------
+if (getParam('bgcolor') != null){
+    document.getElementById("trans_text-imb").style.webkitTextStrokeColor = getParam('bgcolor');
+    document.getElementById("trans_text-imb").style.color = getParam('bgcolor');
+}
+if (getParam('st_width2') != null){
+    document.getElementById("trans_text-imb").style.webkitTextStrokeWidth = getParam('st_width2') + 'pt';
+}
+
+// 翻訳結果テキスト（第2言語） -------
+if (getParam('bgcolor') != null){
+    document.getElementById("trans_text2-imb").style.webkitTextStrokeColor = getParam('bgcolor');
+    document.getElementById("trans_text2-imb").style.color = getParam('bgcolor');
+}
+if (getParam('st_width3') != null){
+    document.getElementById("trans_text2-imb").style.webkitTextStrokeWidth = getParam('st_width3') + 'pt';
+}
+
+// 翻訳結果テキスト（第3言語） -------
+if (getParam('bgcolor') != null){
+    document.getElementById("trans_text3-imb").style.webkitTextStrokeColor = getParam('bgcolor');
+    document.getElementById("trans_text3-imb").style.color = getParam('bgcolor');
+}
+if (getParam('st_width4') != null){
+    document.getElementById("trans_text3-imb").style.webkitTextStrokeWidth = getParam('st_width4') + 'pt';
+}
+
+
+
+// 表示設定 ############################################
+// 全体共通 ----------------
+
+// 音声認識結果 ----------------
+if (getParam('speech_text_font') != null){
+    var fontValue = getParam('speech_text_font');
+    console.log('[DEBUG] speech_text_font from URL:', fontValue);
+    
+    // バックスラッシュを除去
+    fontValue = fontValue.replace(/\\\\/g, '');
+    
+    // フォント名を正しく設定（クォートを追加）
+    // Kleeフォントの場合、正しい名前に変換
+    if (fontValue.toLowerCase() === 'klee') {
+        fontValue = 'Klee';  // macOSでは大文字で始まる
+    }
+    var fontFamily = '"' + fontValue + '", sans-serif';
+    document.getElementById("speech_text").style.fontFamily = fontFamily;
+    
+    // 子要素にも適用
+    var bgElement = document.getElementById("speech_text-bg");
+    var fgElement = document.getElementById("speech_text-fg");
+    var imbElement = document.getElementById("speech_text-imb");
+    
+    if (bgElement) bgElement.style.fontFamily = fontFamily;
+    if (fgElement) fgElement.style.fontFamily = fontFamily;
+    if (imbElement) imbElement.style.fontFamily = fontFamily;
+    
+    console.log('[DEBUG] Applied font to speech_text:', document.getElementById("speech_text").style.fontFamily);
+    console.log('[DEBUG] Applied font to speech_text-fg:', fgElement ? fgElement.style.fontFamily : 'element not found');
+}
+
+if (getParam('size1') != null){
+    document.getElementById("speech_text").style.fontSize = getParam('size1') + 'pt';
+}
+
+if (getParam('weight1') != null){
+    document.getElementById("speech_text").style.fontWeight = getParam('weight1');
+}
+
+if (getParam('color1') != null){
+    document.getElementById("speech_text-fg").style.color = getParam('color1');
+}
+
+if (getParam('st_color1') != null){
+    document.getElementById("speech_text-bg").style.webkitTextStrokeColor = getParam('st_color1');
+}
+
+if (getParam('st_width1') != null){
+    document.getElementById("speech_text-bg").style.webkitTextStrokeWidth = getParam('st_width1') + 'pt';
+}
+
+// 翻訳結果テキスト ----------------
+if (getParam('trans_text_font') != null){
+    var fontValue = getParam('trans_text_font');
+    // バックスラッシュを除去
+    fontValue = fontValue.replace(/\\\\/g, '');
+    if (fontValue.toLowerCase() === 'klee') {
+        fontValue = 'Klee';
+    }
+    var fontFamily = '"' + fontValue + '", sans-serif';
+    document.getElementById("trans_text").style.fontFamily = fontFamily;
+    
+    // 子要素にも適用
+    var bgElement = document.getElementById("trans_text-bg");
+    var fgElement = document.getElementById("trans_text-fg");
+    var imbElement = document.getElementById("trans_text-imb");
+    
+    if (bgElement) bgElement.style.fontFamily = fontFamily;
+    if (fgElement) fgElement.style.fontFamily = fontFamily;
+    if (imbElement) imbElement.style.fontFamily = fontFamily;
+}
+
+if (getParam('size2') != null){
+    document.getElementById("trans_text").style.fontSize = getParam('size2') + 'pt';
+}
+
+if (getParam('weight2') != null){
+    document.getElementById("trans_text").style.fontWeight = getParam('weight2');
+}
+
+if (getParam('color2') != null){
+    document.getElementById("trans_text-fg").style.color = getParam('color2');
+}
+
+if (getParam('st_color2') != null){
+    document.getElementById("trans_text-bg").style.webkitTextStrokeColor = getParam('st_color2');
+}
+
+if (getParam('st_width2') != null){
+    document.getElementById("trans_text-bg").style.webkitTextStrokeWidth = getParam('st_width2') + 'pt';
+}
+
+// 翻訳結果テキスト（第2言語） -----------
+if (getParam('trans_text2_font') != null){
+    var fontValue = getParam('trans_text2_font');
+    // バックスラッシュを除去
+    fontValue = fontValue.replace(/\\\\/g, '');
+    if (fontValue.toLowerCase() === 'klee') {
+        fontValue = 'Klee';
+    }
+    var fontFamily = '"' + fontValue + '", sans-serif';
+    document.getElementById("trans_text2").style.fontFamily = fontFamily;
+    
+    // 子要素にも適用
+    var bgElement = document.getElementById("trans_text2-bg");
+    var fgElement = document.getElementById("trans_text2-fg");
+    var imbElement = document.getElementById("trans_text2-imb");
+    
+    if (bgElement) bgElement.style.fontFamily = fontFamily;
+    if (fgElement) fgElement.style.fontFamily = fontFamily;
+    if (imbElement) imbElement.style.fontFamily = fontFamily;
+}
+
+
+if (getParam('size3') != null){
+    document.getElementById("trans_text2").style.fontSize = getParam('size3') + 'pt';
+}
+
+if (getParam('weight3') != null){
+    document.getElementById("trans_text2").style.fontWeight = getParam('weight3');
+}
+
+if (getParam('color3') != null){
+    document.getElementById("trans_text2-fg").style.color = getParam('color3');
+}
+
+if (getParam('st_color3') != null){
+    document.getElementById("trans_text2-bg").style.webkitTextStrokeColor = getParam('st_color3');
+}
+
+if (getParam('st_width3') != null){
+    document.getElementById("trans_text2-bg").style.webkitTextStrokeWidth = getParam('st_width3') + 'pt';
+}
+
+// 翻訳結果テキスト（第2言語） -----------
+if (getParam('trans_text3_font') != null){
+    var fontValue = getParam('trans_text3_font');
+    // バックスラッシュを除去
+    fontValue = fontValue.replace(/\\\\/g, '');
+    if (fontValue.toLowerCase() === 'klee') {
+        fontValue = 'Klee';
+    }
+    var fontFamily = '"' + fontValue + '", sans-serif';
+    document.getElementById("trans_text3").style.fontFamily = fontFamily;
+    
+    // 子要素にも適用
+    var bgElement = document.getElementById("trans_text3-bg");
+    var fgElement = document.getElementById("trans_text3-fg");
+    var imbElement = document.getElementById("trans_text3-imb");
+    
+    if (bgElement) bgElement.style.fontFamily = fontFamily;
+    if (fgElement) fgElement.style.fontFamily = fontFamily;
+    if (imbElement) imbElement.style.fontFamily = fontFamily;
+}
+
+
+if (getParam('size4') != null){
+    document.getElementById("trans_text3").style.fontSize = getParam('size4') + 'pt';
+}
+
+if (getParam('weight4') != null){
+    document.getElementById("trans_text3").style.fontWeight = getParam('weight4');
+}
+
+if (getParam('color4') != null){
+    document.getElementById("trans_text3-fg").style.color = getParam('color4');
+}
+
+if (getParam('st_color4') != null){
+    document.getElementById("trans_text3-bg").style.webkitTextStrokeColor = getParam('st_color4');
+}
+
+if (getParam('st_width4') != null){
+    document.getElementById("trans_text3-bg").style.webkitTextStrokeWidth = getParam('st_width4') + 'pt';
+}
+
+// 行間設定 ############################################
+if (getParam('line_spacing_1') != null){
+    // 認識テキストと翻訳テキスト1の間
+    document.getElementById("speech_text").style.marginBottom = getParam('line_spacing_1') + 'px';
+}
+
+if (getParam('line_spacing_2') != null){
+    // 翻訳テキスト1と翻訳テキスト2の間
+    document.getElementById("trans_text").style.marginBottom = getParam('line_spacing_2') + 'px';
+}
+
+if (getParam('line_spacing_3') != null){
+    // 翻訳テキスト2と翻訳テキスト3の間
+    document.getElementById("trans_text2").style.marginBottom = getParam('line_spacing_3') + 'px';
+}
+
+</script>
+
+
+
+
+</html>
